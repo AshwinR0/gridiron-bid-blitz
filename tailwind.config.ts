@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,20 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Custom football auction colors
+				fieldGreen: {
+					DEFAULT: '#3a6f34',
+					light: '#4c8544',
+					dark: '#2a5026',
+				},
+				scoreboardBlack: {
+					DEFAULT: '#222222',
+					light: '#333333',
+				},
+				accentGold: {
+					DEFAULT: '#f0c14b',
+					light: '#f8d57e',
 				}
 			},
 			borderRadius: {
@@ -84,11 +99,20 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-glow': {
+					'0%, 100%': { 
+						boxShadow: '0 0 0 0 rgba(240, 193, 75, 0.4)' 
+					},
+					'50%': { 
+						boxShadow: '0 0 10px 5px rgba(240, 193, 75, 0.6)' 
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-glow': 'pulse-glow 2s infinite'
 			}
 		}
 	},
