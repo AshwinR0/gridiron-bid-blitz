@@ -1,213 +1,168 @@
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuction } from "@/contexts/AuctionContext";
-import { Auction } from "@/types";
-import { ArrowRight, CalendarDays, Plus, Users } from "lucide-react";
-import { Link } from "react-router-dom";
+import React, { useState } from 'react';
+import { useAuction } from '@/contexts/AuctionContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { CalendarClock, Clock, DollarSign, FileEdit, Gavel, LucidePlus, PlayCircle, User, UserPlus, Users } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import AuctionManager from './AuctionManager';
 
 const AdminDashboard = () => {
-  const { auctions, setCurrentAuction } = useAuction();
+  const { auctions, isAdmin, startAuction, completeAuction } = useAuction();
+  const [selectedAuctionId, setSelectedAuctionId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  const upcomingAuctions = auctions.filter(a => a.status === 'upcoming');
-  const activeAuctions = auctions.filter(a => a.status === 'active');
-  const completedAuctions = auctions.filter(a => a.status === 'completed');
-
-  return (
-    <div className="container mx-auto p-4">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <Link to="/admin/create-auction">
-          <Button className="bg-fieldGreen hover:bg-fieldGreen-dark">
-            <Plus className="mr-2 h-4 w-4" /> Create New Auction
-          </Button>
-        </Link>
+  if (!isAdmin) {
+    return (
+      <div className="container mx-auto p-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+        <p className="mb-6">You don't have administrator access to view this page.</p>
+        <Button onClick={() => navigate('/')}>Return to Home</Button>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <StatsCard 
-          title="Total Auctions" 
-          value={auctions.length} 
-          icon={<Gavel className="h-8 w-8 text-accentGold" />} 
-        />
-        <StatsCard 
-          title="Active Auctions" 
-          value={activeAuctions.length} 
-          icon={<Activity className="h-8 w-8 text-green-500" />} 
-        />
-        <StatsCard 
-          title="Teams" 
-          value={auctions.reduce((sum, auction) => sum + auction.teams.length, 0)} 
-          icon={<Users className="h-8 w-8 text-blue-500" />} 
-        />
-      </div>
-
-      <h2 className="mt-8 mb-4 text-2xl font-bold">Upcoming Auctions</h2>
-      {upcomingAuctions.length === 0 ? (
-        <p className="text-muted-foreground">No upcoming auctions.</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {upcomingAuctions.map(auction => (
-            <AuctionCard key={auction.id} auction={auction} />
-          ))}
-        </div>
-      )}
-
-      <h2 className="mt-8 mb-4 text-2xl font-bold">Active Auctions</h2>
-      {activeAuctions.length === 0 ? (
-        <p className="text-muted-foreground">No active auctions.</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {activeAuctions.map(auction => (
-            <AuctionCard key={auction.id} auction={auction} />
-          ))}
-        </div>
-      )}
-
-      <h2 className="mt-8 mb-4 text-2xl font-bold">Completed Auctions</h2>
-      {completedAuctions.length === 0 ? (
-        <p className="text-muted-foreground">No completed auctions.</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {completedAuctions.map(auction => (
-            <AuctionCard key={auction.id} auction={auction} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-interface StatsCardProps {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-}
-
-const StatsCard = ({ title, value, icon }: StatsCardProps) => {
-  return (
-    <Card>
-      <CardContent className="flex items-center justify-between p-6">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold">{value}</p>
-        </div>
-        <div className="rounded-full bg-muted p-3">{icon}</div>
-      </CardContent>
-    </Card>
-  );
-};
-
-interface AuctionCardProps {
-  auction: Auction;
-}
-
-const AuctionCard = ({ auction }: AuctionCardProps) => {
-  const { setCurrentAuction } = useAuction();
-
-  // Format date
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString();
+  const handleManageAuction = (auctionId: string) => {
+    setSelectedAuctionId(auctionId);
   };
 
-  const getStatusColor = (status: Auction['status']) => {
+  const getAuctionStatusBadge = (status: string) => {
     switch (status) {
-      case 'active':
-        return 'bg-green-500';
       case 'upcoming':
-        return 'bg-blue-500';
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Upcoming</Badge>;
+      case 'active':
+        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Active</Badge>;
       case 'completed':
-        return 'bg-gray-500';
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">Completed</Badge>;
+      default:
+        return null;
     }
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle>{auction.name}</CardTitle>
-          <div className={`h-2.5 w-2.5 rounded-full ${getStatusColor(auction.status)}`} />
-        </div>
-        <CardDescription className="flex items-center gap-1">
-          <CalendarDays className="h-3.5 w-3.5" />
-          {formatDate(auction.createdAt)}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pb-2">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded bg-muted p-2">
-            <p className="text-xs text-muted-foreground">Teams</p>
-            <p className="font-medium">{auction.teams.length}</p>
-          </div>
-          <div className="rounded bg-muted p-2">
-            <p className="text-xs text-muted-foreground">Players</p>
-            <p className="font-medium">{auction.playerPool.length}</p>
-          </div>
-          <div className="rounded bg-muted p-2">
-            <p className="text-xs text-muted-foreground">Min Price</p>
-            <p className="font-medium">{auction.minPlayerPrice}</p>
-          </div>
-          <div className="rounded bg-muted p-2">
-            <p className="text-xs text-muted-foreground">Status</p>
-            <p className="font-medium capitalize">{auction.status}</p>
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="pt-2">
-        <Button 
-          className="w-full"
-          variant={auction.status === 'active' ? 'default' : 'outline'}
-          onClick={() => {
-            setCurrentAuction(auction.id);
-            window.location.href = `/auctions/${auction.id}`;
-          }}
-        >
-          {auction.status === 'upcoming' && 'View Details'}
-          {auction.status === 'active' && 'Continue Auction'}
-          {auction.status === 'completed' && 'View Results'}
-          <ArrowRight className="ml-2 h-4 w-4" />
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <Button asChild>
+          <Link to="/admin/create-auction">
+            <LucidePlus className="mr-2 h-4 w-4" />
+            Create New Auction
+          </Link>
         </Button>
-      </CardFooter>
-    </Card>
-  );
-};
+      </div>
 
-// Import these components from lucide-react
-const Gavel = ({ className }: { className?: string }) => {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="m14 14-7.8 7.8a1 1 0 0 1-1.4 0l-2.6-2.6a1 1 0 0 1 0-1.4L10 10" />
-      <path d="m16 16 6-6" />
-      <path d="m8 8 6-6" />
-      <path d="m9 7 8 8" />
-      <path d="m21 11-8-8" />
-    </svg>
-  );
-};
-
-const Activity = ({ className }: { className?: string }) => {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
+      {selectedAuctionId ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={() => setSelectedAuctionId(null)}>
+              ← Back to Auctions
+            </Button>
+          </div>
+          <AuctionManager auctionId={selectedAuctionId} />
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {auctions.map((auction) => (
+            <Card key={auction.id} className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-xl">{auction.name}</CardTitle>
+                  {getAuctionStatusBadge(auction.status)}
+                </div>
+                <CardDescription className="flex items-center text-sm">
+                  <CalendarClock className="mr-1 h-4 w-4" />
+                  Created {new Date(auction.createdAt).toLocaleDateString()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pb-2">
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="flex flex-col items-center justify-center p-2 bg-muted rounded">
+                    <Users className="mb-1 h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{auction.teams.length}</span>
+                    <span className="text-xs text-muted-foreground">Teams</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center p-2 bg-muted rounded">
+                    <User className="mb-1 h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{auction.playerPool.length}</span>
+                    <span className="text-xs text-muted-foreground">Players</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Min. Player Price:</span>
+                    <span className="font-medium">${auction.minPlayerPrice}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total Sold:</span>
+                    <span className="font-medium">
+                      {auction.history.filter(h => {
+                        const playerBids = auction.history.filter(bid => bid.playerId === h.playerId);
+                        const lastBid = playerBids[playerBids.length - 1];
+                        return lastBid.teamId === h.teamId && lastBid.amount === h.amount;
+                      }).length} players
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="grid grid-cols-2 gap-2 pt-2">
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={() => handleManageAuction(auction.id)}
+                >
+                  <Gavel className="mr-2 h-4 w-4" />
+                  Manage
+                </Button>
+                {auction.status === 'upcoming' ? (
+                  <Button 
+                    className="w-full" 
+                    onClick={() => startAuction(auction.id)}
+                  >
+                    <PlayCircle className="mr-2 h-4 w-4" />
+                    Start
+                  </Button>
+                ) : auction.status === 'active' ? (
+                  <Button 
+                    className="w-full" 
+                    variant="secondary"
+                    onClick={() => completeAuction(auction.id)}
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    Complete
+                  </Button>
+                ) : (
+                  <Button 
+                    className="w-full" 
+                    variant="secondary"
+                    asChild
+                  >
+                    <Link to={`/auctions/${auction.id}`}>
+                      <FileEdit className="mr-2 h-4 w-4" />
+                      View
+                    </Link>
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          ))}
+          
+          {auctions.length === 0 && (
+            <div className="md:col-span-2 lg:col-span-3 p-8 text-center border rounded-lg bg-muted">
+              <Gavel className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <h2 className="text-xl font-medium mb-2">No Auctions Available</h2>
+              <p className="text-muted-foreground mb-4">Create your first auction to get started</p>
+              <Button asChild>
+                <Link to="/admin/create-auction">
+                  <LucidePlus className="mr-2 h-4 w-4" />
+                  Create New Auction
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 

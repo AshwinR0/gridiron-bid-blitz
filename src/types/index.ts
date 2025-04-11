@@ -9,6 +9,7 @@ export interface Player {
   stats?: {
     [key: string]: number;
   };
+  purchaseAmount?: number; // Amount player was purchased for
 }
 
 export interface Team {
