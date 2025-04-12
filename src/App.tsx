@@ -11,6 +11,7 @@ import { AuctionProvider } from "./contexts/AuctionContext";
 import AdminDashboard from "./components/AdminDashboard";
 import CreateAuctionForm from "./components/CreateAuctionForm";
 import { AuctionsPage, AuctionPage } from "./pages/AuctionsPage";
+import { TournamentsList, TournamentPage } from "./pages/TournamentsPage";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,8 @@ const App = () => (
                 <Route path="/admin/create-auction" element={<CreateAuctionForm />} />
                 <Route path="/auctions" element={<AuctionsPage />} />
                 <Route path="/auctions/:auctionId" element={<AuctionPage />} />
+                <Route path="/tournaments" element={<TournamentsList />} />
+                <Route path="/tournaments/:tournamentId" element={<TournamentPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

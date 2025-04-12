@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useAuction } from "@/contexts/AuctionContext";
-import { Gavel, Home, Settings, User } from "lucide-react";
+import { Gavel, Home, Settings, Trophy, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const NavBar = () => {
@@ -19,6 +19,7 @@ const NavBar = () => {
         <div className="hidden space-x-4 md:flex">
           <NavLink to="/" icon={<Home size={18} />} label="Home" active={location.pathname === "/"} />
           <NavLink to="/auctions" icon={<Gavel size={18} />} label="Auctions" active={location.pathname.includes("/auctions")} />
+          <NavLink to="/tournaments" icon={<Trophy size={18} />} label="Tournaments" active={location.pathname.includes("/tournaments")} />
           {isAdmin && (
             <NavLink to="/admin" icon={<Settings size={18} />} label="Admin" active={location.pathname.includes("/admin")} />
           )}

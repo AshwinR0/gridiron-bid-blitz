@@ -1,4 +1,3 @@
-
 export type PlayerPosition = 'Forward' | 'Defence' | 'Goalkeeper';
 
 export interface Player {
@@ -31,29 +30,65 @@ export interface BidIncrementRule {
   incrementBy: number;
 }
 
+export type TournamentType = 'league' | 'knockout' | 'combination';
+
+export type TournamentFixture = {
+  id: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  date: string;
+  homeScore?: number;
+  awayScore?: number;
+  status: 'scheduled' | 'in_progress' | 'completed';
+  round?: number; // For knockout tournaments
+};
+
+export type PlayerStat = {
+  playerId: string;
+  teamId: string;
+  goals: number;
+  assists: number;
+  cleanSheets: number;
+  yellowCards: number;
+  redCards: number;
+};
+
+export type TournamentTable = {
+  teamId: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  points: number;
+};
+
+export type Tournament = {
+  id: string;
+  name: string;
+  type: TournamentType;
+  startDate: string;
+  endDate?: string;
+  status: 'upcoming' | 'active' | 'completed';
+  auctionId: string;
+  fixtures: TournamentFixture[];
+  playerStats: PlayerStat[];
+  table: TournamentTable[];
+};
+
 export interface Auction {
   id: string;
   name: string;
-  status: 'upcoming' | 'active' | 'completed';
   minPlayerPrice: number;
   teams: Team[];
   playerPool: Player[];
-  currentPlayerId?: string;
-  currentBid?: {
-    amount: number;
-    teamId: string;
-  };
-  history: Array<{
-    playerId: string;
-    teamId: string;
-    amount: number;
-    timestamp: number;
-  }>;
-  unsoldPlayerIds?: string[]; // IDs of players that were marked as unsold
-  createdAt: number;
-  startedAt?: number;
-  completedAt?: number;
-  bidIncrementRules?: BidIncrementRule[]; // New field for bidding increment rules
+  status: 'upcoming' | 'active' | 'completed';
+  createdAt: string;
+  history: BidHistory[];
+  bidIncrementRules: BidIncrementRule[];
+  tournamentId?: string;
+  tournamentType?: TournamentType;
 }
 
 export interface AuctionContextType {

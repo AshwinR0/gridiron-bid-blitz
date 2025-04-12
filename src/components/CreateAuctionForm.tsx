@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuction } from "@/contexts/AuctionContext";
-import { Auction, BidIncrementRule, Player, PlayerPosition, Team } from "@/types";
+import { Auction, BidIncrementRule, Player, PlayerPosition, Team, TournamentType } from "@/types";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TeamSetup from "./TeamSetup";
 import PlayerList from "./PlayerList";
 import { Plus, Trash } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const CreateAuctionForm = () => {
   const { createAuction } = useAuction();
@@ -24,6 +25,7 @@ const CreateAuctionForm = () => {
   const [bidIncrementRules, setBidIncrementRules] = useState<BidIncrementRule[]>([
     { fromAmount: 50, toAmount: 1000, incrementBy: 50 }
   ]);
+  const [tournamentType, setTournamentType] = useState<TournamentType | undefined>(undefined);
 
   const handleAddTeam = (team: Team) => {
     setTeams(prev => [...prev, team]);
@@ -66,7 +68,8 @@ const CreateAuctionForm = () => {
       minPlayerPrice,
       teams,
       playerPool: players,
-      bidIncrementRules
+      bidIncrementRules,
+      tournamentType
     };
 
     createAuction(auctionData);
@@ -91,6 +94,10 @@ const CreateAuctionForm = () => {
     },
     {
       id: "step-4",
+      name: "Tournament",
+    },
+    {
+      id: "step-5",
       name: "Review",
     },
   ];
@@ -224,6 +231,63 @@ const CreateAuctionForm = () => {
           )}
 
           {formStep === 3 && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium mb-3">Tournament Setup</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Choose a tournament format for this auction or skip if you don't want to create a tournament.
+                </p>
+                
+                <RadioGroup 
+                  value={tournamentType} 
+                  onValueChange={(value) => setTournamentType(value as TournamentType)}
+                  className="space-y-4"
+                >
+                  <div className="flex items-start space-x-3 p-3 border rounded-md hover:border-fieldGreen">
+                    <RadioGroupItem value="league" id="league" className="mt-1" />
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="league" className="font-medium">League Format</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Every team plays against each other. Teams earn points based on wins, draws, and losses.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3 p-3 border rounded-md hover:border-fieldGreen">
+                    <RadioGroupItem value="knockout" id="knockout" className="mt-1" />
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="knockout" className="font-medium">Knockout Format</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Teams compete in elimination rounds until one remains as the winner.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3 p-3 border rounded-md hover:border-fieldGreen">
+                    <RadioGroupItem value="combination" id="combination" className="mt-1" />
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="combination" className="font-medium">Combination Format</Label>
+                      <p className="text-sm text-muted-foreground">
+                        League stage followed by knockout rounds for top teams.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-3 p-3 border rounded-md hover:border-fieldGreen">
+                    <RadioGroupItem value={undefined} id="no-tournament" className="mt-1" />
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="no-tournament" className="font-medium">No Tournament</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Just run the auction without creating a tournament.
+                      </p>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+          )}
+
+          {formStep === 4 && (
             <div className="space-y-6">
               <div>
                 <h3 className="mb-2 text-lg font-medium">Auction Summary</h3>
@@ -233,6 +297,7 @@ const CreateAuctionForm = () => {
                   <p><strong>Teams:</strong> {teams.length}</p>
                   <p><strong>Players:</strong> {players.length}</p>
                   <p><strong>Bidding Increment Rules:</strong> {bidIncrementRules.length}</p>
+                  <p><strong>Tournament Type:</strong> {tournamentType || 'None'}</p>
                 </div>
               </div>
 
