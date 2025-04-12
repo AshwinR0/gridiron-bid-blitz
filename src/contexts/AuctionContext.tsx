@@ -373,9 +373,21 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const { teamId, amount } = currentAuction.currentBid;
       const playerId = currentAuction.currentPlayerId;
 
+      // Find the team to update
+      const teamToUpdate = currentAuction.teams.find(team => team.id === teamId);
+      if (!teamToUpdate) {
+        toast({
+          title: "Error",
+          description: "Team not found.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Update teams (assign player and reduce budget)
       const updatedTeams = currentAuction.teams.map(team => {
         if (team.id === teamId) {
+          // Add the player to the team's roster
           return {
             ...team,
             players: [...team.players, { playerId, purchaseAmount: amount }],
@@ -385,7 +397,7 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return team;
       });
 
-      // Update the auction
+      // Update the auction with the updated teams and reset current player and bid
       setAuctions(prevAuctions => 
         prevAuctions.map(auction => 
           auction.id === currentAuction.id 
