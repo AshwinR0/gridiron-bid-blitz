@@ -25,7 +25,8 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       status: 'upcoming',
       history: [],
       createdAt: Date.now(),
-      unsoldPlayerIds: []
+      unsoldPlayerIds: [],
+      soldPlayerIds: [],
     };
 
     setAuctions([...auctions, newAuction]);
@@ -37,15 +38,16 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const startAuction = (auctionId: string) => {
-    setAuctions(prevAuctions => 
-      prevAuctions.map(auction => 
-        auction.id === auctionId 
-          ? { 
-              ...auction, 
-              status: 'active', 
-              startedAt: Date.now(),
-              unsoldPlayerIds: []
-            } 
+    setAuctions(prevAuctions =>
+      prevAuctions.map(auction =>
+        auction.id === auctionId
+          ? {
+            ...auction,
+            status: 'active',
+            startedAt: Date.now(),
+            unsoldPlayerIds: [],
+            soldPlayerIds: []
+          }
           : auction
       )
     );
@@ -69,10 +71,10 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const completeAuction = (auctionId: string) => {
-    setAuctions(prevAuctions => 
-      prevAuctions.map(auction => 
-        auction.id === auctionId 
-          ? { ...auction, status: 'completed', completedAt: Date.now() } 
+    setAuctions(prevAuctions =>
+      prevAuctions.map(auction =>
+        auction.id === auctionId
+          ? { ...auction, status: 'completed', completedAt: Date.now() }
           : auction
       )
     );
@@ -168,22 +170,22 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    setAuctions(prevAuctions => 
-      prevAuctions.map(auction => 
-        auction.id === currentAuction.id 
-          ? { 
-              ...auction, 
-              currentBid: { amount, teamId },
-              history: [
-                ...auction.history,
-                {
-                  playerId: auction.currentPlayerId || "",
-                  teamId,
-                  amount,
-                  timestamp: Date.now()
-                }
-              ]
-            } 
+    setAuctions(prevAuctions =>
+      prevAuctions.map(auction =>
+        auction.id === currentAuction.id
+          ? {
+            ...auction,
+            currentBid: { amount, teamId },
+            history: [
+              ...auction.history,
+              {
+                playerId: auction.currentPlayerId || "",
+                teamId,
+                amount,
+                timestamp: Date.now()
+              }
+            ]
+          }
           : auction
       )
     );
@@ -276,15 +278,15 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       prevAuctions.map(auction =>
         auction.id === currentAuction.id
           ? {
-              ...auction,
-              currentBid: { ...auction.currentBid!, amount },
-              history: auction.history.map((item, index) => {
-                if (index === auction.history.length - 1 && item.playerId === auction.currentPlayerId) {
-                  return { ...item, amount };
-                }
-                return item;
-              })
-            }
+            ...auction,
+            currentBid: { ...auction.currentBid!, amount },
+            history: auction.history.map((item, index) => {
+              if (index === auction.history.length - 1 && item.playerId === auction.currentPlayerId) {
+                return { ...item, amount };
+              }
+              return item;
+            })
+          }
           : auction
       )
     );
@@ -319,15 +321,15 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    setAuctions(prevAuctions => 
-      prevAuctions.map(auction => 
-        auction.id === currentAuction.id 
-          ? { 
-              ...auction,
-              unsoldPlayerIds: [...(auction.unsoldPlayerIds || []), playerId],
-              currentBid: undefined,
-              currentPlayerId: undefined
-            } 
+    setAuctions(prevAuctions =>
+      prevAuctions.map(auction =>
+        auction.id === currentAuction.id
+          ? {
+            ...auction,
+            unsoldPlayerIds: [...(auction.unsoldPlayerIds || []), playerId],
+            currentBid: undefined,
+            currentPlayerId: undefined
+          }
           : auction
       )
     );
@@ -392,15 +394,17 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return team;
       });
 
-      setAuctions(prevAuctions => 
-        prevAuctions.map(auction => 
-          auction.id === currentAuction.id 
-            ? { 
-                ...auction,
-                teams: updatedTeams,
-                currentPlayerId: undefined,
-                currentBid: undefined
-              } 
+      setAuctions(prevAuctions =>
+        prevAuctions.map(auction =>
+          auction.id === currentAuction.id
+            ? {
+              ...auction,
+              teams: updatedTeams,
+              currentPlayerId: undefined,
+              currentBid: undefined,
+              soldPlayerIds: [...(auction.soldPlayerIds || []), currentAuction.currentPlayerId],
+              unsoldPlayerIds: auction.unsoldPlayerIds?.filter(id => id !== currentAuction.currentPlayerId)
+            }
             : auction
         )
       );
@@ -411,7 +415,8 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ...prevAuction,
           teams: updatedTeams,
           currentPlayerId: undefined,
-          currentBid: undefined
+          currentBid: undefined,
+          soldPlayerIds: [...(prevAuction.soldPlayerIds || []), currentAuction.currentPlayerId]
         };
       });
 

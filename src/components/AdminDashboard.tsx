@@ -96,18 +96,17 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Total Sold:</span>
                     <span className="font-medium">
-                      {auction.history.filter(h => {
-                        const playerBids = auction.history.filter(bid => bid.playerId === h.playerId);
-                        const lastBid = playerBids[playerBids.length - 1];
-                        return lastBid.teamId === h.teamId && lastBid.amount === h.amount;
-                      }).length} players
+                      {(() => {
+                        const soldPlayerIds = new Set(auction.soldPlayerIds || []);
+                        return auction.playerPool.filter(p => soldPlayerIds.has(p.id)).length;
+                      })()} players
                     </span>
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="grid grid-cols-2 gap-2 pt-2">
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   variant="outline"
                   onClick={() => handleManageAuction(auction.id)}
                 >
@@ -115,16 +114,16 @@ const AdminDashboard = () => {
                   Manage
                 </Button>
                 {auction.status === 'upcoming' ? (
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     onClick={() => startAuction(auction.id)}
                   >
                     <PlayCircle className="mr-2 h-4 w-4" />
                     Start
                   </Button>
                 ) : auction.status === 'active' ? (
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     variant="secondary"
                     onClick={() => completeAuction(auction.id)}
                   >
@@ -132,8 +131,8 @@ const AdminDashboard = () => {
                     Complete
                   </Button>
                 ) : (
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     variant="secondary"
                     asChild
                   >
@@ -146,7 +145,7 @@ const AdminDashboard = () => {
               </CardFooter>
             </Card>
           ))}
-          
+
           {auctions.length === 0 && (
             <div className="md:col-span-2 lg:col-span-3 p-8 text-center border rounded-lg bg-muted">
               <Gavel className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

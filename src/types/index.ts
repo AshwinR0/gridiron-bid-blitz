@@ -50,6 +50,7 @@ export interface Auction {
     timestamp: number;
   }>;
   unsoldPlayerIds?: string[]; // IDs of players that were marked as unsold
+  soldPlayerIds?: string[]; // IDs of players that were sold
   createdAt: number;
   startedAt?: number;
   completedAt?: number;

@@ -11,7 +11,7 @@ import AuctionInterface from '@/components/AuctionInterface';
 const AuctionsPage: React.FC = () => {
   const { auctions, setCurrentAuction } = useAuction();
   const navigate = useNavigate();
-  
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
@@ -52,18 +52,17 @@ const AuctionsPage: React.FC = () => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Total Sold:</span>
                   <span className="font-medium">
-                    {auction.history.filter(h => {
-                      const playerBids = auction.history.filter(bid => bid.playerId === h.playerId);
-                      const lastBid = playerBids[playerBids.length - 1];
-                      return lastBid.teamId === h.teamId && lastBid.amount === h.amount;
-                    }).length} players
+                    {(() => {
+                      const soldPlayerIds = new Set(auction.soldPlayerIds || []);
+                      return auction.playerPool.filter(p => soldPlayerIds.has(p.id)).length;
+                    })()} players
                   </span>
                 </div>
               </div>
             </CardContent>
             <CardFooter className="pt-2">
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full"
                 onClick={() => navigate(`/auctions/${auction.id}`)}
               >
                 <Eye className="mr-2 h-4 w-4" />
@@ -88,15 +87,15 @@ const AuctionPage: React.FC = () => {
   const { auctionId } = useParams<{ auctionId: string }>();
   const { auctions, setCurrentAuction } = useAuction();
   const navigate = useNavigate();
-  
+
   useEffect(() => {
     if (auctionId) {
       setCurrentAuction(auctionId);
     }
   }, [auctionId, setCurrentAuction]);
-  
+
   const auction = auctions.find(a => a.id === auctionId);
-  
+
   if (!auction) {
     return (
       <div className="container mx-auto p-8 text-center">
@@ -106,7 +105,7 @@ const AuctionPage: React.FC = () => {
       </div>
     );
   }
-  
+
   return <AuctionInterface auctionId={auctionId || ''} />;
 };
 
