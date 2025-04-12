@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState } from "react";
 import { Auction, AuctionContextType } from "@/types";
 import { initialAuctions } from "@/data/mockData";
@@ -51,7 +50,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       )
     );
 
-    // Also update current auction if it's the one being started
     if (currentAuction?.id === auctionId) {
       setCurrentAuction(prevAuction => {
         if (!prevAuction) return null;
@@ -79,7 +77,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       )
     );
 
-    // Also update current auction if it's the one being completed
     if (currentAuction?.id === auctionId) {
       setCurrentAuction(prevAuction => {
         if (!prevAuction) return null;
@@ -112,7 +109,15 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Find the team
+    if (!currentAuction.currentPlayerId) {
+      toast({
+        title: "Bid Error",
+        description: "No player selected for bidding.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const team = currentAuction.teams.find(t => t.id === teamId);
     if (!team) {
       toast({
@@ -123,7 +128,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Check if team has enough budget
     if (team.remainingBudget < amount) {
       toast({
         title: "Bid Error",
@@ -133,7 +137,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Check if the bid meets minimum price
     if (amount < currentAuction.minPlayerPrice) {
       toast({
         title: "Bid Error",
@@ -143,17 +146,15 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Check if the bid is higher than current bid
-    if (currentAuction.currentBid && amount <= currentAuction.currentBid.amount) {
+    if (amount <= currentAuction.currentBid?.amount) {
       toast({
         title: "Bid Error",
-        description: `Bid must be higher than current bid of ${currentAuction.currentBid.amount}.`,
+        description: `Bid must be higher than current bid of ${currentAuction.currentBid?.amount}.`,
         variant: "destructive"
       });
       return;
     }
 
-    // Calculate max possible bid based on remaining requirements
     const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
     const minBudgetNeeded = playersNeeded > 1 ? (playersNeeded - 1) * currentAuction.minPlayerPrice : 0;
     const maxPossibleBid = team.remainingBudget - minBudgetNeeded;
@@ -167,7 +168,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Update the auction with new bid
     setAuctions(prevAuctions => 
       prevAuctions.map(auction => 
         auction.id === currentAuction.id 
@@ -188,7 +188,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       )
     );
 
-    // Update current auction state too
     setCurrentAuction(prevAuction => {
       if (!prevAuction) return null;
       return {
@@ -212,7 +211,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  // New function to update bid amount
   const updateBidAmount = (amount: number) => {
     if (!currentAuction || !currentAuction.currentBid) {
       toast({
@@ -243,7 +241,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Validate the updated amount
     if (amount < currentAuction.minPlayerPrice) {
       toast({
         title: "Error",
@@ -262,7 +259,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Calculate max possible bid
     const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
     const minBudgetNeeded = playersNeeded > 1 ? (playersNeeded - 1) * currentAuction.minPlayerPrice : 0;
     const maxPossibleBid = team.remainingBudget - minBudgetNeeded;
@@ -276,16 +272,13 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Update the bid amount in the auction
     setAuctions(prevAuctions =>
       prevAuctions.map(auction =>
         auction.id === currentAuction.id
           ? {
               ...auction,
               currentBid: { ...auction.currentBid!, amount },
-              // Update the history to reflect the changed amount
               history: auction.history.map((item, index) => {
-                // Only update the latest bid for this player
                 if (index === auction.history.length - 1 && item.playerId === auction.currentPlayerId) {
                   return { ...item, amount };
                 }
@@ -296,7 +289,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       )
     );
 
-    // Update current auction state
     setCurrentAuction(prevAuction => {
       if (!prevAuction) return null;
       return {
@@ -327,7 +319,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Add player to unsold list
     setAuctions(prevAuctions => 
       prevAuctions.map(auction => 
         auction.id === currentAuction.id 
@@ -341,7 +332,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       )
     );
 
-    // Update current auction state too
     setCurrentAuction(prevAuction => {
       if (!prevAuction) return null;
       return {
@@ -368,12 +358,19 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // If there's a current bid and a player selected, assign the player to the team
-    if (currentAuction.currentBid && currentAuction.currentPlayerId) {
+    if (!currentAuction.currentPlayerId) {
+      toast({
+        title: "Action Failed",
+        description: "Please select a player first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (currentAuction.currentBid) {
       const { teamId, amount } = currentAuction.currentBid;
       const playerId = currentAuction.currentPlayerId;
 
-      // Find the team to update
       const teamToUpdate = currentAuction.teams.find(team => team.id === teamId);
       if (!teamToUpdate) {
         toast({
@@ -384,10 +381,8 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
 
-      // Update teams (assign player and reduce budget)
       const updatedTeams = currentAuction.teams.map(team => {
         if (team.id === teamId) {
-          // Add the player to the team's roster
           return {
             ...team,
             players: [...team.players, { playerId, purchaseAmount: amount }],
@@ -397,7 +392,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return team;
       });
 
-      // Update the auction with the updated teams and reset current player and bid
       setAuctions(prevAuctions => 
         prevAuctions.map(auction => 
           auction.id === currentAuction.id 
@@ -411,7 +405,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         )
       );
 
-      // Update current auction state too
       setCurrentAuction(prevAuction => {
         if (!prevAuction) return null;
         return {
@@ -426,15 +419,8 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         title: "Player Sold",
         description: `Player assigned to team. Select the next player for bidding.`,
       });
-    } else if (currentAuction.currentPlayerId) {
-      // If there's a player selected but no bid, mark as unsold
-      markPlayerUnsold(currentAuction.currentPlayerId);
     } else {
-      toast({
-        title: "Action Failed",
-        description: "Please select a player first.",
-        variant: "destructive"
-      });
+      markPlayerUnsold(currentAuction.currentPlayerId);
     }
   };
 
