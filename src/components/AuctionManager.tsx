@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuction } from '@/contexts/AuctionContext';
-import { Player, Team } from '@/types';
+import { BidIncrementRule, Player, Team } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -9,7 +9,9 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/use-toast';
-import { DollarSign, Gavel, Users, XCircle, CheckCircle } from 'lucide-react';
+import { 
+  DollarSign, Gavel, Search, Users, XCircle, CheckCircle, Filter, Edit, Check, X
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface AuctionManagerProps {
@@ -17,12 +19,15 @@ interface AuctionManagerProps {
 }
 
 const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
-  const { auctions, setCurrentAuction, currentAuction, placeBid, nextPlayer, markPlayerUnsold } = useAuction();
-  const [bidAmount, setBidAmount] = useState<string>('');
+  const { auctions, setCurrentAuction, currentAuction, placeBid, nextPlayer, markPlayerUnsold, updateBidAmount } = useAuction();
   const [selectedPlayerForBidding, setSelectedPlayerForBidding] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [positionFilter, setPositionFilter] = useState<string | null>(null);
+  const [editingBid, setEditingBid] = useState(false);
+  const [editedBidAmount, setEditedBidAmount] = useState('');
 
   // Set current auction if not already set
-  React.useEffect(() => {
+  useEffect(() => {
     if (!currentAuction || currentAuction.id !== auctionId) {
       setCurrentAuction(auctionId);
     }
@@ -46,7 +51,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
   const { teams } = auction;
 
   // Handle bid submission for a specific team
-  const handleTeamBid = (teamId: string, amount: number) => {
+  const handleTeamBid = (teamId: string) => {
     if (!selectedPlayerForBidding) {
       toast({
         title: "Error",
@@ -56,23 +61,25 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
       return;
     }
 
-    placeBid(teamId, amount);
-  };
-
-  // Handle custom bid submission
-  const handleCustomBid = (teamId: string) => {
-    const amount = Number(bidAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid bid amount",
-        variant: "destructive"
-      });
-      return;
+    // Determine the increment amount based on rules
+    let incrementAmount = 1; // Default increment
+    const currentBidAmount = auction.currentBid?.amount || auction.minPlayerPrice;
+    
+    if (auction.bidIncrementRules && auction.bidIncrementRules.length > 0) {
+      for (const rule of auction.bidIncrementRules) {
+        if (currentBidAmount >= rule.fromAmount && currentBidAmount <= rule.toAmount) {
+          incrementAmount = rule.incrementBy;
+          break;
+        }
+      }
     }
 
-    handleTeamBid(teamId, amount);
-    setBidAmount('');
+    // Calculate the new bid amount
+    const newBidAmount = auction.currentBid 
+      ? auction.currentBid.amount + incrementAmount 
+      : auction.minPlayerPrice;
+
+    placeBid(teamId, newBidAmount);
   };
 
   // Move to next player and process current player
@@ -86,17 +93,6 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
       return;
     }
 
-    // If no bids were placed, mark as unsold
-    if (!auction.currentBid) {
-      markPlayerUnsold(selectedPlayerForBidding);
-      toast({
-        title: "Player Unsold",
-        description: "Player has been marked as unsold and will be available for the next round.",
-      });
-      setSelectedPlayerForBidding(null);
-      return;
-    }
-
     nextPlayer();
     setSelectedPlayerForBidding(null);
   };
@@ -104,6 +100,22 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
   // Select a player for bidding
   const handleSelectPlayerForBidding = (playerId: string) => {
     setSelectedPlayerForBidding(playerId);
+  };
+
+  // Handle saving edited bid amount
+  const handleSaveEditedBid = () => {
+    const amount = Number(editedBidAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid bid amount",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    updateBidAmount(amount);
+    setEditingBid(false);
   };
 
   // Get players that have been sold
@@ -153,6 +165,15 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
     acc[position].push(player);
     return acc;
   }, {} as Record<string, Player[]>);
+
+  // Filter players based on search query and position filter
+  const filterPlayers = (players: Player[]) => {
+    return players.filter(player => {
+      const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesPosition = positionFilter === null || player.position === positionFilter;
+      return matchesSearch && matchesPosition;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -219,7 +240,37 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                     {auction.currentBid ? (
                       <div className="flex items-center">
                         <DollarSign className="h-5 w-5 text-accentGold mr-1" />
-                        <span className="text-xl font-bold">{auction.currentBid.amount}</span>
+                        {editingBid ? (
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="number"
+                              value={editedBidAmount}
+                              onChange={(e) => setEditedBidAmount(e.target.value)}
+                              className="w-32"
+                            />
+                            <Button size="sm" onClick={handleSaveEditedBid}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingBid(false)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-xl font-bold">{auction.currentBid.amount}</span>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="ml-2" 
+                              onClick={() => {
+                                setEditedBidAmount(auction.currentBid!.amount.toString());
+                                setEditingBid(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                         <span className="ml-2 text-muted-foreground">by</span>
                         <span className="ml-1 font-medium">
                           {auction.teams.find(t => t.id === auction.currentBid?.teamId)?.name}
@@ -243,10 +294,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                           return (
                             <Button 
                               key={team.id}
-                              onClick={() => handleTeamBid(team.id, auction.currentBid 
-                                ? auction.currentBid.amount + 1 
-                                : auction.minPlayerPrice
-                              )}
+                              onClick={() => handleTeamBid(team.id)}
                               disabled={!canBid}
                               variant={isCurrentBidder ? "default" : "outline"}
                               className={`h-auto py-2 ${isCurrentBidder ? 'border-2 border-fieldGreen' : ''}`}
@@ -264,31 +312,6 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                           );
                         })}
                       </div>
-                      
-                      <div className="grid grid-cols-4 gap-2">
-                        <Input
-                          type="number"
-                          placeholder="Custom bid amount"
-                          value={bidAmount}
-                          onChange={(e) => setBidAmount(e.target.value)}
-                          min={auction.currentBid ? auction.currentBid.amount + 1 : auction.minPlayerPrice}
-                          className="col-span-3"
-                        />
-                        <div className="relative col-span-1">
-                          <select 
-                            className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-                            onChange={(e) => handleCustomBid(e.target.value)}
-                            defaultValue=""
-                          >
-                            <option value="" disabled>Team</option>
-                            {teams.map(team => (
-                              <option key={team.id} value={team.id}>
-                                {team.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -300,9 +323,11 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="mr-2 h-5 w-5" />
-                Player Selection
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Users className="mr-2 h-5 w-5" />
+                  Player Selection
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -322,15 +347,39 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                   </Badge>
                 </div>
 
+                <div className="flex gap-2 items-center">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search players..."
+                      className="pl-8"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-initial">
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      value={positionFilter || ""}
+                      onChange={(e) => setPositionFilter(e.target.value || null)}
+                    >
+                      <option value="">All Positions</option>
+                      <option value="Forward">Forward</option>
+                      <option value="Defence">Defence</option>
+                      <option value="Goalkeeper">Goalkeeper</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="max-h-[400px] overflow-y-auto border rounded-md">
                   {Object.entries(playersByPosition).map(([position, players]) => {
                     // Filter players by position and get available ones
-                    const availablePlayers = players.filter(
+                    const availablePlayers = filterPlayers(players.filter(
                       p => !soldPlayerIds.has(p.id) && 
                            (p.id === selectedPlayerForBidding || 
                             (!selectedPlayerForBidding && !unsoldPlayerIds.has(p.id)) ||
                             unsoldPlayerIds.has(p.id))
-                    );
+                    ));
                     
                     if (availablePlayers.length === 0) return null;
                     
@@ -433,6 +482,9 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                 };
               });
 
+              // Calculate max bid
+              const maxBid = calculateMaxBid(team);
+
               return (
                 <div key={team.id} className="border rounded-md overflow-hidden">
                   <div className="bg-muted p-3 flex justify-between items-center">
@@ -440,6 +492,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                     <div className="text-sm">
                       <span className="font-medium">Budget:</span> {team.remainingBudget}/{team.budget} 
                       <span className="ml-2 font-medium">Players:</span> {teamPlayers.length}/{team.minPlayers}
+                      <span className="ml-2 font-medium">Max Bid:</span> {maxBid}
                     </div>
                   </div>
                   <Table>

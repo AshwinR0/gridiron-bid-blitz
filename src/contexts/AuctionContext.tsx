@@ -212,6 +212,111 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
+  // New function to update bid amount
+  const updateBidAmount = (amount: number) => {
+    if (!currentAuction || !currentAuction.currentBid) {
+      toast({
+        title: "Error",
+        description: "No active bid to update.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!currentAuction.currentPlayerId) {
+      toast({
+        title: "Error",
+        description: "No player selected for bidding.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const teamId = currentAuction.currentBid.teamId;
+    const team = currentAuction.teams.find(t => t.id === teamId);
+    if (!team) {
+      toast({
+        title: "Error",
+        description: "Team not found.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate the updated amount
+    if (amount < currentAuction.minPlayerPrice) {
+      toast({
+        title: "Error",
+        description: `Bid amount must be at least ${currentAuction.minPlayerPrice}.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (amount > team.remainingBudget) {
+      toast({
+        title: "Error",
+        description: "Updated amount exceeds team's remaining budget.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Calculate max possible bid
+    const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
+    const minBudgetNeeded = playersNeeded > 1 ? (playersNeeded - 1) * currentAuction.minPlayerPrice : 0;
+    const maxPossibleBid = team.remainingBudget - minBudgetNeeded;
+
+    if (playersNeeded > 1 && amount > maxPossibleBid) {
+      toast({
+        title: "Bid Error",
+        description: `Bid exceeds maximum allowed. You must reserve at least ${minBudgetNeeded} for ${playersNeeded - 1} more players.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Update the bid amount in the auction
+    setAuctions(prevAuctions =>
+      prevAuctions.map(auction =>
+        auction.id === currentAuction.id
+          ? {
+              ...auction,
+              currentBid: { ...auction.currentBid!, amount },
+              // Update the history to reflect the changed amount
+              history: auction.history.map((item, index) => {
+                // Only update the latest bid for this player
+                if (index === auction.history.length - 1 && item.playerId === auction.currentPlayerId) {
+                  return { ...item, amount };
+                }
+                return item;
+              })
+            }
+          : auction
+      )
+    );
+
+    // Update current auction state
+    setCurrentAuction(prevAuction => {
+      if (!prevAuction) return null;
+      return {
+        ...prevAuction,
+        currentBid: { ...prevAuction.currentBid!, amount },
+        history: prevAuction.history.map((item, index) => {
+          if (index === prevAuction.history.length - 1 && item.playerId === prevAuction.currentPlayerId) {
+            return { ...item, amount };
+          }
+          return item;
+        })
+      };
+    });
+
+    toast({
+      title: "Bid Updated",
+      description: `${team.name}'s bid has been updated to ${amount}.`,
+    });
+  };
+
   const markPlayerUnsold = (playerId: string) => {
     if (!currentAuction) {
       toast({
@@ -309,6 +414,15 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         title: "Player Sold",
         description: `Player assigned to team. Select the next player for bidding.`,
       });
+    } else if (currentAuction.currentPlayerId) {
+      // If there's a player selected but no bid, mark as unsold
+      markPlayerUnsold(currentAuction.currentPlayerId);
+    } else {
+      toast({
+        title: "Action Failed",
+        description: "Please select a player first.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -327,7 +441,8 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     placeBid,
     nextPlayer,
     markPlayerUnsold,
-    toggleAdmin
+    toggleAdmin,
+    updateBidAmount
   };
 
   return (

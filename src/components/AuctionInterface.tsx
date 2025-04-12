@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuction } from "@/contexts/AuctionContext";
 import { Auction, Player, Team } from "@/types";
-import { ArrowLeftRight, ChevronsRight, DollarSign, Users, Clock, Gavel, Trophy } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeftRight, ChevronsRight, DollarSign, Users, Clock, Gavel, Trophy, Edit, Check, X } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 
@@ -14,14 +14,16 @@ interface AuctionInterfaceProps {
 }
 
 const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
-  const { auctions, currentAuction, setCurrentAuction, isAdmin, startAuction, completeAuction, placeBid, nextPlayer } = useAuction();
-  const [customBidAmount, setCustomBidAmount] = useState("");
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const { auctions, currentAuction, setCurrentAuction, isAdmin, startAuction, completeAuction, placeBid, nextPlayer, updateBidAmount } = useAuction();
+  const [editingBid, setEditingBid] = useState(false);
+  const [editedBidAmount, setEditedBidAmount] = useState("");
 
-  // If no current auction, try to set it
-  if (!currentAuction && auctionId) {
-    setCurrentAuction(auctionId);
-  }
+  // Set current auction when component mounts or auctionId changes
+  useEffect(() => {
+    if (auctionId && (!currentAuction || currentAuction.id !== auctionId)) {
+      setCurrentAuction(auctionId);
+    }
+  }, [auctionId, currentAuction, setCurrentAuction]);
 
   if (!currentAuction) {
     return <div className="p-8 text-center">Auction not found</div>;
@@ -39,17 +41,9 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
     nextPlayer();
   };
 
-  const handlePlaceBid = () => {
-    if (!selectedTeamId) {
-      toast({
-        title: "Error",
-        description: "Please select a team first",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const amount = Number(customBidAmount);
+  // Handle saving edited bid amount
+  const handleSaveEditedBid = () => {
+    const amount = Number(editedBidAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({
         title: "Error",
@@ -59,14 +53,58 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
       return;
     }
 
-    placeBid(selectedTeamId, amount);
-    setCustomBidAmount("");
+    updateBidAmount(amount);
+    setEditingBid(false);
   };
 
   // Find the current player being auctioned
   const currentPlayer = currentAuction.currentPlayerId 
     ? currentAuction.playerPool.find(p => p.id === currentAuction.currentPlayerId) 
     : null;
+
+  // Calculate maximum bid amount for each team
+  const calculateMaxBid = (team: Team) => {
+    const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
+    if (playersNeeded <= 1) {
+      return team.remainingBudget;
+    }
+    
+    // Reserve minimum budget for remaining required players
+    const minBudgetNeeded = (playersNeeded - 1) * currentAuction.minPlayerPrice;
+    return team.remainingBudget - minBudgetNeeded;
+  };
+
+  // Handle team bid
+  const handleTeamBid = (teamId: string) => {
+    if (!currentAuction.currentPlayerId) {
+      toast({
+        title: "Error",
+        description: "No player selected for bidding",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Determine the increment amount based on rules
+    let incrementAmount = 1; // Default increment
+    const currentBidAmount = currentAuction.currentBid?.amount || currentAuction.minPlayerPrice;
+    
+    if (currentAuction.bidIncrementRules && currentAuction.bidIncrementRules.length > 0) {
+      for (const rule of currentAuction.bidIncrementRules) {
+        if (currentBidAmount >= rule.fromAmount && currentBidAmount <= rule.toAmount) {
+          incrementAmount = rule.incrementBy;
+          break;
+        }
+      }
+    }
+
+    // Calculate the new bid amount
+    const newBidAmount = currentAuction.currentBid 
+      ? currentAuction.currentBid.amount + incrementAmount 
+      : currentAuction.minPlayerPrice;
+
+    placeBid(teamId, newBidAmount);
+  };
 
   // Get sold players
   const soldPlayers = currentAuction.history.filter(h => {
@@ -171,7 +209,37 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
                   {currentAuction.currentBid ? (
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-5 w-5 text-accentGold" />
-                      <span className="text-2xl font-bold">{currentAuction.currentBid.amount}</span>
+                      {editingBid ? (
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            value={editedBidAmount}
+                            onChange={(e) => setEditedBidAmount(e.target.value)}
+                            className="w-32"
+                          />
+                          <Button size="sm" onClick={handleSaveEditedBid}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingBid(false)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-2xl font-bold">{currentAuction.currentBid.amount}</span>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="ml-2" 
+                            onClick={() => {
+                              setEditedBidAmount(currentAuction.currentBid!.amount.toString());
+                              setEditingBid(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                       <span className="text-muted-foreground">by</span>
                       <span className="font-medium">
                         {currentAuction.teams.find(t => t.id === currentAuction.currentBid?.teamId)?.name}
@@ -187,64 +255,27 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
                 {!isAdmin && (
                   <div className="mt-6 space-y-4">
                     <h4 className="font-medium">Place Your Bid</h4>
-                    <div className="grid gap-4 md:grid-cols-5">
-                      <div className="md:col-span-2">
-                        <Select onValueChange={(value) => setSelectedTeamId(value)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Team" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {currentAuction.teams.map(team => (
-                              <SelectItem key={team.id} value={team.id}>
-                                {team.name} (Budget: {team.remainingBudget})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <Input
-                          type="number"
-                          placeholder="Enter bid amount"
-                          value={customBidAmount}
-                          onChange={(e) => setCustomBidAmount(e.target.value)}
-                          min={currentAuction.currentBid 
-                            ? currentAuction.currentBid.amount + 1 
-                            : currentAuction.minPlayerPrice}
-                        />
-                      </div>
-                      <div>
-                        <Button 
-                          className="w-full" 
-                          onClick={handlePlaceBid}
-                          disabled={!selectedTeamId || !customBidAmount}
-                        >
-                          Bid
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-2">
-                      {[5, 10, 25, 50].map(amount => {
-                        const bidAmount = (currentAuction.currentBid?.amount || currentAuction.minPlayerPrice) + amount;
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {currentAuction.teams.map(team => {
+                        // Calculate max bid for this team
+                        const maxBid = calculateMaxBid(team);
+                        const canBid = maxBid >= currentAuction.minPlayerPrice;
+                        const isCurrentBidder = currentAuction.currentBid?.teamId === team.id;
+                        
                         return (
                           <Button 
-                            key={amount} 
-                            variant="outline" 
-                            onClick={() => {
-                              if (selectedTeamId) {
-                                placeBid(selectedTeamId, bidAmount);
-                              } else {
-                                toast({
-                                  title: "Error",
-                                  description: "Please select a team first",
-                                  variant: "destructive"
-                                });
-                              }
-                            }}
-                            disabled={!selectedTeamId}
+                            key={team.id}
+                            onClick={() => handleTeamBid(team.id)}
+                            disabled={!canBid}
+                            variant={isCurrentBidder ? "default" : "outline"}
+                            className={`h-auto py-2 ${isCurrentBidder ? 'border-2 border-fieldGreen' : ''}`}
                           >
-                            +{amount}
+                            <div className="text-left flex flex-col items-start w-full">
+                              <span className="font-medium">{team.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                Max Bid: {maxBid}
+                              </span>
+                            </div>
                           </Button>
                         );
                       })}
@@ -423,6 +454,18 @@ const TeamCard = ({ team, auction, soldPlayers }: TeamCardProps) => {
   const spentBudget = team.budget - team.remainingBudget;
   const budgetPercentage = (spentBudget / team.budget) * 100;
 
+  // Calculate max bid
+  const maxBid = (() => {
+    const playersNeeded = Math.max(0, team.minPlayers - teamPurchases.length);
+    if (playersNeeded <= 1) {
+      return team.remainingBudget;
+    }
+    
+    // Reserve minimum budget for remaining required players
+    const minBudgetNeeded = (playersNeeded - 1) * auction.minPlayerPrice;
+    return team.remainingBudget - minBudgetNeeded;
+  })();
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -442,7 +485,7 @@ const TeamCard = ({ team, auction, soldPlayers }: TeamCardProps) => {
           </div>
         </div>
         
-        <div className="mb-4 grid grid-cols-2 gap-2">
+        <div className="mb-4 grid grid-cols-3 gap-2">
           <div className="rounded-md bg-muted p-3 text-center">
             <p className="text-xs text-muted-foreground">Players</p>
             <p className="text-lg font-medium">{teamPurchases.length}</p>
@@ -450,6 +493,10 @@ const TeamCard = ({ team, auction, soldPlayers }: TeamCardProps) => {
           <div className="rounded-md bg-muted p-3 text-center">
             <p className="text-xs text-muted-foreground">Needed</p>
             <p className="text-lg font-medium">{neededPlayers}</p>
+          </div>
+          <div className="rounded-md bg-muted p-3 text-center">
+            <p className="text-xs text-muted-foreground">Max Bid</p>
+            <p className="text-lg font-medium">{maxBid}</p>
           </div>
         </div>
 
@@ -539,42 +586,6 @@ const PlayerCard = ({ player, status, bid, team }: PlayerCardProps) => {
         </div>
       </CardContent>
     </Card>
-  );
-};
-
-// These are custom implementations for components to avoid import errors
-const Select = ({ children, onValueChange }: { children: React.ReactNode, onValueChange: (value: string) => void }) => {
-  return <div className="relative">{children}</div>;
-};
-
-const SelectTrigger = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <div className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring">
-      {children}
-      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="6 9 12 15 18 9"></polyline>
-      </svg>
-    </div>
-  );
-};
-
-const SelectValue = ({ placeholder }: { placeholder: string }) => {
-  return <span className="text-muted-foreground">{placeholder}</span>;
-};
-
-const SelectContent = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <div className="absolute left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
-      <div className="p-1">{children}</div>
-    </div>
-  );
-};
-
-const SelectItem = ({ value, children }: { value: string, children: React.ReactNode }) => {
-  return (
-    <div className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground">
-      {children}
-    </div>
   );
 };
 

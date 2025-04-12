@@ -10,9 +10,7 @@ import NavBar from "./components/NavBar";
 import { AuctionProvider } from "./contexts/AuctionContext";
 import AdminDashboard from "./components/AdminDashboard";
 import CreateAuctionForm from "./components/CreateAuctionForm";
-import AuctionHistory from "./components/AuctionHistory";
 import { AuctionsPage, AuctionPage } from "./pages/AuctionsPage";
-import { useAuction } from "@/contexts/AuctionContext";
 
 const queryClient = new QueryClient();
 

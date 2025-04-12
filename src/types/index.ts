@@ -25,6 +25,12 @@ export interface Team {
   }>;
 }
 
+export interface BidIncrementRule {
+  fromAmount: number;
+  toAmount: number;
+  incrementBy: number;
+}
+
 export interface Auction {
   id: string;
   name: string;
@@ -47,6 +53,7 @@ export interface Auction {
   createdAt: number;
   startedAt?: number;
   completedAt?: number;
+  bidIncrementRules?: BidIncrementRule[]; // New field for bidding increment rules
 }
 
 export interface AuctionContextType {
@@ -61,4 +68,5 @@ export interface AuctionContextType {
   nextPlayer: () => void;
   markPlayerUnsold: (playerId: string) => void;
   toggleAdmin: () => void;
+  updateBidAmount: (amount: number) => void; // New function to update bid amount
 }

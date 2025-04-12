@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuction } from "@/contexts/AuctionContext";
-import { Auction, Player, PlayerPosition, Team } from "@/types";
+import { Auction, BidIncrementRule, Player, PlayerPosition, Team } from "@/types";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TeamSetup from "./TeamSetup";
 import PlayerList from "./PlayerList";
+import { Plus, Trash } from "lucide-react";
 
 const CreateAuctionForm = () => {
   const { createAuction } = useAuction();
@@ -20,6 +21,9 @@ const CreateAuctionForm = () => {
   const [minPlayerPrice, setMinPlayerPrice] = useState(50);
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [bidIncrementRules, setBidIncrementRules] = useState<BidIncrementRule[]>([
+    { fromAmount: 50, toAmount: 1000, incrementBy: 50 }
+  ]);
 
   const handleAddTeam = (team: Team) => {
     setTeams(prev => [...prev, team]);
@@ -37,6 +41,20 @@ const CreateAuctionForm = () => {
     setPlayers(prev => prev.filter(player => player.id !== playerId));
   };
 
+  const handleAddBidRule = () => {
+    setBidIncrementRules(prev => [...prev, { fromAmount: 0, toAmount: 0, incrementBy: 0 }]);
+  };
+
+  const handleRemoveBidRule = (index: number) => {
+    setBidIncrementRules(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateBidRule = (index: number, field: keyof BidIncrementRule, value: number) => {
+    setBidIncrementRules(prev => prev.map((rule, i) => 
+      i === index ? { ...rule, [field]: value } : rule
+    ));
+  };
+
   const handleCreateAuction = () => {
     if (!auctionName || teams.length === 0 || players.length === 0) {
       // Show error
@@ -48,6 +66,7 @@ const CreateAuctionForm = () => {
       minPlayerPrice,
       teams,
       playerPool: players,
+      bidIncrementRules
     };
 
     createAuction(auctionData);
@@ -58,7 +77,7 @@ const CreateAuctionForm = () => {
     {
       id: "step-1",
       name: "Step 1",
-      fields: ["auctionName", "minPlayerPrice"],
+      fields: ["auctionName", "minPlayerPrice", "bidIncrementRules"],
     },
     {
       id: "step-2",
@@ -125,6 +144,66 @@ const CreateAuctionForm = () => {
                   onChange={(e) => setMinPlayerPrice(Number(e.target.value))}
                 />
               </div>
+              
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Bidding Increment Rules</Label>
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddBidRule}
+                    className="flex items-center gap-1"
+                  >
+                    <Plus className="h-4 w-4" /> Add Rule
+                  </Button>
+                </div>
+                <div className="space-y-3 mt-3">
+                  {bidIncrementRules.map((rule, index) => (
+                    <div key={index} className="grid grid-cols-10 gap-2 items-center">
+                      <div className="col-span-3">
+                        <Label htmlFor={`fromAmount-${index}`} className="text-xs">From Amount</Label>
+                        <Input
+                          id={`fromAmount-${index}`}
+                          type="number"
+                          value={rule.fromAmount}
+                          onChange={(e) => handleUpdateBidRule(index, 'fromAmount', Number(e.target.value))}
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <Label htmlFor={`toAmount-${index}`} className="text-xs">To Amount</Label>
+                        <Input
+                          id={`toAmount-${index}`}
+                          type="number"
+                          value={rule.toAmount}
+                          onChange={(e) => handleUpdateBidRule(index, 'toAmount', Number(e.target.value))}
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <Label htmlFor={`incrementBy-${index}`} className="text-xs">Increment By</Label>
+                        <Input
+                          id={`incrementBy-${index}`}
+                          type="number"
+                          value={rule.incrementBy}
+                          onChange={(e) => handleUpdateBidRule(index, 'incrementBy', Number(e.target.value))}
+                        />
+                      </div>
+                      <div className="col-span-1 flex items-end justify-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveBidRule(index)}
+                          className="mt-5"
+                          disabled={bidIncrementRules.length <= 1}
+                        >
+                          <Trash className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -153,6 +232,7 @@ const CreateAuctionForm = () => {
                   <p><strong>Minimum Player Price:</strong> {minPlayerPrice}</p>
                   <p><strong>Teams:</strong> {teams.length}</p>
                   <p><strong>Players:</strong> {players.length}</p>
+                  <p><strong>Bidding Increment Rules:</strong> {bidIncrementRules.length}</p>
                 </div>
               </div>
 
@@ -160,6 +240,7 @@ const CreateAuctionForm = () => {
                 <TabsList className="w-full">
                   <TabsTrigger value="teams" className="flex-1">Teams</TabsTrigger>
                   <TabsTrigger value="players" className="flex-1">Players</TabsTrigger>
+                  <TabsTrigger value="bidRules" className="flex-1">Bid Rules</TabsTrigger>
                 </TabsList>
                 <TabsContent value="teams">
                   <div className="mt-4 space-y-4">
@@ -190,6 +271,30 @@ const CreateAuctionForm = () => {
                               <p className="text-sm text-muted-foreground">
                                 Position: {player.position}
                               </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </TabsContent>
+                <TabsContent value="bidRules">
+                  <div className="mt-4 space-y-4">
+                    {bidIncrementRules.map((rule, index) => (
+                      <Card key={index}>
+                        <CardContent className="p-4">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <p className="text-sm text-muted-foreground">From Amount</p>
+                              <p className="font-medium">{rule.fromAmount}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">To Amount</p>
+                              <p className="font-medium">{rule.toAmount}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Increment By</p>
+                              <p className="font-medium">{rule.incrementBy}</p>
                             </div>
                           </div>
                         </CardContent>
