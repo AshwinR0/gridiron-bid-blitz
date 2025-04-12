@@ -7,21 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from '@/components/ui/table';
-import { 
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
-} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/use-toast';
-import { DollarSign, Gavel, Users } from 'lucide-react';
+import { DollarSign, Gavel, Users, XCircle, CheckCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface AuctionManagerProps {
   auctionId: string;
 }
 
 const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
-  const { auctions, setCurrentAuction, currentAuction, placeBid, nextPlayer } = useAuction();
-  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+  const { auctions, setCurrentAuction, currentAuction, placeBid, nextPlayer, markPlayerUnsold } = useAuction();
   const [bidAmount, setBidAmount] = useState<string>('');
+  const [selectedPlayerForBidding, setSelectedPlayerForBidding] = useState<string | null>(null);
 
   // Set current auction if not already set
   React.useEffect(() => {
@@ -40,24 +38,29 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
   }
 
   // Get current player being auctioned
-  const currentPlayer = auction.currentPlayerId 
-    ? auction.playerPool.find(p => p.id === auction.currentPlayerId) 
+  const currentPlayer = selectedPlayerForBidding
+    ? auction.playerPool.find(p => p.id === selectedPlayerForBidding) 
     : null;
 
   // Get teams for this auction
   const { teams } = auction;
 
-  // Handle bid submission
-  const handleBidSubmit = () => {
-    if (!selectedTeamId) {
+  // Handle bid submission for a specific team
+  const handleTeamBid = (teamId: string, amount: number) => {
+    if (!selectedPlayerForBidding) {
       toast({
         title: "Error",
-        description: "Please select a team first",
+        description: "Please select a player first",
         variant: "destructive"
       });
       return;
     }
 
+    placeBid(teamId, amount);
+  };
+
+  // Handle custom bid submission
+  const handleCustomBid = (teamId: string) => {
     const amount = Number(bidAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({
@@ -68,13 +71,39 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
       return;
     }
 
-    placeBid(selectedTeamId, amount);
+    handleTeamBid(teamId, amount);
     setBidAmount('');
   };
 
-  // Move to next player
+  // Move to next player and process current player
   const handleNextPlayer = () => {
+    if (!selectedPlayerForBidding) {
+      toast({
+        title: "Error",
+        description: "Please select a player first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // If no bids were placed, mark as unsold
+    if (!auction.currentBid) {
+      markPlayerUnsold(selectedPlayerForBidding);
+      toast({
+        title: "Player Unsold",
+        description: "Player has been marked as unsold and will be available for the next round.",
+      });
+      setSelectedPlayerForBidding(null);
+      return;
+    }
+
     nextPlayer();
+    setSelectedPlayerForBidding(null);
+  };
+
+  // Select a player for bidding
+  const handleSelectPlayerForBidding = (playerId: string) => {
+    setSelectedPlayerForBidding(playerId);
   };
 
   // Get players that have been sold
@@ -88,10 +117,32 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
   // Create a set of sold player IDs for quick lookup
   const soldPlayerIds = new Set(soldPlayers.map(p => p.playerId));
 
-  // Get remaining players (not sold yet)
+  // Get unsold players (marked as unsold)
+  const unsoldPlayerIds = new Set(auction.unsoldPlayerIds || []);
+
+  // Get remaining players (not sold yet, not currently selected, and not marked as unsold)
   const remainingPlayers = auction.playerPool.filter(
-    p => !soldPlayerIds.has(p.id) && p.id !== auction.currentPlayerId
+    p => !soldPlayerIds.has(p.id) && 
+         p.id !== selectedPlayerForBidding && 
+         !unsoldPlayerIds.has(p.id)
   );
+
+  // Get all unsold players
+  const unsoldPlayers = auction.playerPool.filter(
+    p => unsoldPlayerIds.has(p.id)
+  );
+
+  // Calculate maximum bid amount for each team
+  const calculateMaxBid = (team: Team) => {
+    const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
+    if (playersNeeded <= 1) {
+      return team.remainingBudget;
+    }
+    
+    // Reserve minimum budget for remaining required players
+    const minBudgetNeeded = (playersNeeded - 1) * auction.minPlayerPrice;
+    return team.remainingBudget - minBudgetNeeded;
+  };
 
   // Group players by position
   const playersByPosition = auction.playerPool.reduce((acc, player) => {
@@ -111,9 +162,9 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
           <Button 
             variant="outline" 
             onClick={handleNextPlayer}
-            disabled={auction.status !== 'active'}
+            disabled={auction.status !== 'active' || !selectedPlayerForBidding}
           >
-            Next Player
+            {auction.currentBid ? "Assign & Next" : "Mark Unsold & Next"}
           </Button>
         </div>
       </div>
@@ -180,49 +231,69 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                   </div>
 
                   <div className="border-t pt-4">
-                    <p className="text-sm font-medium mb-2">Place New Bid:</p>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div className="col-span-2">
-                        <Select onValueChange={setSelectedTeamId} value={selectedTeamId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Team" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {teams.map(team => {
-                              const minRequired = auction.minPlayerPrice * Math.max(0, team.minPlayers - team.players.length);
-                              const maxBid = team.remainingBudget - minRequired;
-                              return (
-                                <SelectItem key={team.id} value={team.id} disabled={maxBid < auction.minPlayerPrice}>
-                                  {team.name} (Budget: {team.remainingBudget})
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
+                    <p className="text-sm font-medium mb-2">Place Bid For Team:</p>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {teams.map(team => {
+                          // Calculate max bid for this team
+                          const maxBid = calculateMaxBid(team);
+                          const canBid = maxBid >= auction.minPlayerPrice;
+                          const isCurrentBidder = auction.currentBid?.teamId === team.id;
+                          
+                          return (
+                            <Button 
+                              key={team.id}
+                              onClick={() => handleTeamBid(team.id, auction.currentBid 
+                                ? auction.currentBid.amount + 1 
+                                : auction.minPlayerPrice
+                              )}
+                              disabled={!canBid}
+                              variant={isCurrentBidder ? "default" : "outline"}
+                              className={`h-auto py-2 ${isCurrentBidder ? 'border-2 border-fieldGreen' : ''}`}
+                            >
+                              <div className="text-left flex flex-col items-start w-full">
+                                <span className="font-medium">{team.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  Budget: {team.remainingBudget}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  Max Bid: {maxBid}
+                                </span>
+                              </div>
+                            </Button>
+                          );
+                        })}
                       </div>
-                      <div>
+                      
+                      <div className="grid grid-cols-4 gap-2">
                         <Input
                           type="number"
-                          placeholder="Bid amount"
+                          placeholder="Custom bid amount"
                           value={bidAmount}
                           onChange={(e) => setBidAmount(e.target.value)}
                           min={auction.currentBid ? auction.currentBid.amount + 1 : auction.minPlayerPrice}
+                          className="col-span-3"
                         />
-                      </div>
-                      <div>
-                        <Button 
-                          className="w-full"
-                          onClick={handleBidSubmit}
-                          disabled={!selectedTeamId || !bidAmount}
-                        >
-                          Place Bid
-                        </Button>
+                        <div className="relative col-span-1">
+                          <select 
+                            className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            onChange={(e) => handleCustomBid(e.target.value)}
+                            defaultValue=""
+                          >
+                            <option value="" disabled>Team</option>
+                            {teams.map(team => (
+                              <option key={team.id} value={team.id}>
+                                {team.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <p className="text-center py-8 text-muted-foreground">No player currently selected for bidding</p>
+                <p className="text-center py-8 text-muted-foreground">Select a player for bidding</p>
               )}
             </CardContent>
           </Card>
@@ -231,71 +302,111 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Users className="mr-2 h-5 w-5" />
-                Player Pool
+                Player Selection
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex space-x-2">
-                  <div className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-xs">
-                    Current: {currentPlayer ? 1 : 0}
-                  </div>
-                  <div className="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs">
+                  <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                    Selected: {selectedPlayerForBidding ? '1' : '0'}
+                  </Badge>
+                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
                     Sold: {soldPlayers.length}
-                  </div>
-                  <div className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs">
+                  </Badge>
+                  <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+                    Unsold: {unsoldPlayers.length}
+                  </Badge>
+                  <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
                     Remaining: {remainingPlayers.length}
-                  </div>
+                  </Badge>
                 </div>
 
                 <div className="max-h-[400px] overflow-y-auto border rounded-md">
-                  {Object.entries(playersByPosition).map(([position, players]) => (
-                    <div key={position} className="border-b last:border-b-0">
-                      <div className="p-2 bg-muted font-medium">{position}s ({players.length})</div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Stats</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {players.map(player => {
-                            // Determine player status
-                            let status = "Available";
-                            let statusClass = "text-blue-600";
-                            
-                            if (player.id === currentPlayer?.id) {
-                              status = "Current";
-                              statusClass = "text-amber-600 font-medium";
-                            } else if (soldPlayerIds.has(player.id)) {
-                              status = "Sold";
-                              statusClass = "text-green-600";
-                            }
+                  {Object.entries(playersByPosition).map(([position, players]) => {
+                    // Filter players by position and get available ones
+                    const availablePlayers = players.filter(
+                      p => !soldPlayerIds.has(p.id) && 
+                           (p.id === selectedPlayerForBidding || 
+                            (!selectedPlayerForBidding && !unsoldPlayerIds.has(p.id)) ||
+                            unsoldPlayerIds.has(p.id))
+                    );
+                    
+                    if (availablePlayers.length === 0) return null;
+                    
+                    return (
+                      <div key={position} className="border-b last:border-b-0">
+                        <div className="p-2 bg-muted font-medium">{position}s ({availablePlayers.length})</div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Stats</TableHead>
+                              <TableHead className="text-right">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {availablePlayers.map(player => {
+                              // Determine player status
+                              let status = "Available";
+                              let statusClass = "text-blue-600";
+                              let statusIcon = null;
+                              
+                              if (player.id === selectedPlayerForBidding) {
+                                status = "Selected";
+                                statusClass = "text-amber-600 font-medium";
+                                statusIcon = <CheckCircle className="h-4 w-4 inline mr-1 text-amber-600" />;
+                              } else if (unsoldPlayerIds.has(player.id)) {
+                                status = "Unsold";
+                                statusClass = "text-red-600";
+                                statusIcon = <XCircle className="h-4 w-4 inline mr-1 text-red-600" />;
+                              }
 
-                            return (
-                              <TableRow key={player.id}>
-                                <TableCell className="font-medium">{player.name}</TableCell>
-                                <TableCell className={statusClass}>{status}</TableCell>
-                                <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {player.stats && Object.entries(player.stats).map(([key, value]) => (
-                                      <span key={key} className="text-xs">
-                                        {key}: {value}
-                                      </span>
-                                    )).slice(0, 2)}
-                                    {player.stats && Object.keys(player.stats).length > 2 && 
-                                      <span className="text-xs text-muted-foreground">...</span>}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ))}
+                              return (
+                                <TableRow key={player.id}>
+                                  <TableCell className="font-medium">{player.name}</TableCell>
+                                  <TableCell className={statusClass}>
+                                    {statusIcon}{status}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-wrap gap-1">
+                                      {player.stats && Object.entries(player.stats).map(([key, value]) => (
+                                        <span key={key} className="text-xs">
+                                          {key}: {value}
+                                        </span>
+                                      )).slice(0, 2)}
+                                      {player.stats && Object.keys(player.stats).length > 2 && 
+                                        <span className="text-xs text-muted-foreground">...</span>}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {player.id === selectedPlayerForBidding ? (
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => setSelectedPlayerForBidding(null)}
+                                      >
+                                        Deselect
+                                      </Button>
+                                    ) : (
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => handleSelectPlayerForBidding(player.id)}
+                                      >
+                                        Select
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </CardContent>

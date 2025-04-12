@@ -43,6 +43,7 @@ export interface Auction {
     amount: number;
     timestamp: number;
   }>;
+  unsoldPlayerIds?: string[]; // IDs of players that were marked as unsold
   createdAt: number;
   startedAt?: number;
   completedAt?: number;
@@ -58,5 +59,6 @@ export interface AuctionContextType {
   setCurrentAuction: (auctionId: string) => void;
   placeBid: (teamId: string, amount: number) => void;
   nextPlayer: () => void;
+  markPlayerUnsold: (playerId: string) => void;
   toggleAdmin: () => void;
 }

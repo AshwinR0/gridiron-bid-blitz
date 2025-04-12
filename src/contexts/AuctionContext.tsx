@@ -25,7 +25,8 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       id: Math.random().toString(36).substring(2, 10),
       status: 'upcoming',
       history: [],
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      unsoldPlayerIds: []
     };
 
     setAuctions([...auctions, newAuction]);
@@ -44,7 +45,7 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
               ...auction, 
               status: 'active', 
               startedAt: Date.now(),
-              currentPlayerId: auction.playerPool[0]?.id // Set the first player as current
+              unsoldPlayerIds: []
             } 
           : auction
       )
@@ -58,14 +59,14 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ...prevAuction,
           status: 'active',
           startedAt: Date.now(),
-          currentPlayerId: prevAuction.playerPool[0]?.id
+          unsoldPlayerIds: []
         };
       });
     }
 
     toast({
       title: "Auction Started",
-      description: "The auction has begun! First player is up for bidding.",
+      description: "The auction has begun! Select a player to start bidding.",
     });
   };
 
@@ -102,10 +103,10 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const placeBid = (teamId: string, amount: number) => {
-    if (!currentAuction || !currentAuction.currentPlayerId) {
+    if (!currentAuction) {
       toast({
         title: "Bid Error",
-        description: "No active player for bidding.",
+        description: "No active auction for bidding.",
         variant: "destructive"
       });
       return;
@@ -154,13 +155,13 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     // Calculate max possible bid based on remaining requirements
     const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
-    const minBudgetNeeded = playersNeeded * currentAuction.minPlayerPrice;
+    const minBudgetNeeded = playersNeeded > 1 ? (playersNeeded - 1) * currentAuction.minPlayerPrice : 0;
     const maxPossibleBid = team.remainingBudget - minBudgetNeeded;
 
-    if (playersNeeded > 0 && amount > maxPossibleBid) {
+    if (playersNeeded > 1 && amount > maxPossibleBid) {
       toast({
         title: "Bid Error",
-        description: `Bid exceeds maximum allowed. You must reserve at least ${minBudgetNeeded} for ${playersNeeded} more players.`,
+        description: `Bid exceeds maximum allowed. You must reserve at least ${minBudgetNeeded} for ${playersNeeded - 1} more players.`,
         variant: "destructive"
       });
       return;
@@ -176,7 +177,7 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
               history: [
                 ...auction.history,
                 {
-                  playerId: auction.currentPlayerId!,
+                  playerId: auction.currentPlayerId || "",
                   teamId,
                   amount,
                   timestamp: Date.now()
@@ -196,7 +197,7 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         history: [
           ...prevAuction.history,
           {
-            playerId: prevAuction.currentPlayerId!,
+            playerId: prevAuction.currentPlayerId || "",
             teamId,
             amount,
             timestamp: Date.now()
@@ -211,6 +212,47 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
+  const markPlayerUnsold = (playerId: string) => {
+    if (!currentAuction) {
+      toast({
+        title: "Action Failed",
+        description: "No active auction.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Add player to unsold list
+    setAuctions(prevAuctions => 
+      prevAuctions.map(auction => 
+        auction.id === currentAuction.id 
+          ? { 
+              ...auction,
+              unsoldPlayerIds: [...(auction.unsoldPlayerIds || []), playerId],
+              currentBid: undefined,
+              currentPlayerId: undefined
+            } 
+          : auction
+      )
+    );
+
+    // Update current auction state too
+    setCurrentAuction(prevAuction => {
+      if (!prevAuction) return null;
+      return {
+        ...prevAuction,
+        unsoldPlayerIds: [...(prevAuction.unsoldPlayerIds || []), playerId],
+        currentBid: undefined,
+        currentPlayerId: undefined
+      };
+    });
+
+    toast({
+      title: "Player Unsold",
+      description: "Player has been marked as unsold and will be available for the next round.",
+    });
+  };
+
   const nextPlayer = () => {
     if (!currentAuction || currentAuction.status !== 'active') {
       toast({
@@ -221,7 +263,7 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // If there's a current bid, assign the player to the team
+    // If there's a current bid and a player selected, assign the player to the team
     if (currentAuction.currentBid && currentAuction.currentPlayerId) {
       const { teamId, amount } = currentAuction.currentBid;
       const playerId = currentAuction.currentPlayerId;
@@ -238,27 +280,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return team;
       });
 
-      // Find next available player
-      const soldPlayerIds = new Set([
-        ...currentAuction.history
-          .filter(h => h.playerId !== currentAuction.currentPlayerId)
-          .map(h => h.playerId),
-        currentAuction.currentPlayerId
-      ]);
-      
-      const nextPlayer = currentAuction.playerPool.find(p => !soldPlayerIds.has(p.id));
-
-      // Check if all players are sold
-      if (!nextPlayer) {
-        // Complete the auction if all players are sold
-        completeAuction(currentAuction.id);
-        toast({
-          title: "Auction Complete",
-          description: "All players have been sold. The auction is now complete.",
-        });
-        return;
-      }
-
       // Update the auction
       setAuctions(prevAuctions => 
         prevAuctions.map(auction => 
@@ -266,7 +287,7 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
             ? { 
                 ...auction,
                 teams: updatedTeams,
-                currentPlayerId: nextPlayer.id,
+                currentPlayerId: undefined,
                 currentBid: undefined
               } 
             : auction
@@ -279,61 +300,14 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return {
           ...prevAuction,
           teams: updatedTeams,
-          currentPlayerId: nextPlayer.id,
+          currentPlayerId: undefined,
           currentBid: undefined
         };
       });
 
       toast({
         title: "Player Sold",
-        description: `Player assigned to team and next player is up for bidding.`,
-      });
-    } else {
-      toast({
-        title: "No Bids",
-        description: "No valid bids were placed for this player. Moving to next player.",
-      });
-      
-      // Find next available player (skipping current one)
-      const soldPlayerIds = new Set([
-        ...currentAuction.history.map(h => h.playerId),
-        currentAuction.currentPlayerId
-      ]);
-      
-      const nextPlayer = currentAuction.playerPool.find(p => !soldPlayerIds.has(p.id));
-
-      // Check if all players are processed
-      if (!nextPlayer) {
-        // Complete the auction if all players are processed
-        completeAuction(currentAuction.id);
-        toast({
-          title: "Auction Complete",
-          description: "All players have been processed. The auction is now complete.",
-        });
-        return;
-      }
-
-      // Update the auction with next player
-      setAuctions(prevAuctions => 
-        prevAuctions.map(auction => 
-          auction.id === currentAuction.id 
-            ? { 
-                ...auction,
-                currentPlayerId: nextPlayer.id,
-                currentBid: undefined
-              } 
-            : auction
-        )
-      );
-
-      // Update current auction state too
-      setCurrentAuction(prevAuction => {
-        if (!prevAuction) return null;
-        return {
-          ...prevAuction,
-          currentPlayerId: nextPlayer.id,
-          currentBid: undefined
-        };
+        description: `Player assigned to team. Select the next player for bidding.`,
       });
     }
   };
@@ -352,6 +326,7 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCurrentAuction: setCurrentAuctionById,
     placeBid,
     nextPlayer,
+    markPlayerUnsold,
     toggleAdmin
   };
 
