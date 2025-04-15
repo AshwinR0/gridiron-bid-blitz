@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuction } from '@/contexts/AuctionContext';
@@ -9,7 +8,7 @@ import { CalendarClock, Clock, DollarSign, Eye, Users } from 'lucide-react';
 import AuctionInterface from '@/components/AuctionInterface';
 
 const AuctionsPage: React.FC = () => {
-  const { auctions, setCurrentAuction } = useAuction();
+  const { auctions, setCurrentAuctionById } = useAuction();
   const navigate = useNavigate();
 
   return (
@@ -40,7 +39,7 @@ const AuctionsPage: React.FC = () => {
                 </div>
                 <div className="flex flex-col items-center justify-center p-2 bg-muted rounded">
                   <Users className="mb-1 h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{auction.playerPool.length}</span>
+                  <span className="text-sm font-medium">{auction.players.length}</span>
                   <span className="text-xs text-muted-foreground">Players</span>
                 </div>
               </div>
@@ -54,7 +53,7 @@ const AuctionsPage: React.FC = () => {
                   <span className="font-medium">
                     {(() => {
                       const soldPlayerIds = new Set(auction.soldPlayerIds || []);
-                      return auction.playerPool.filter(p => soldPlayerIds.has(p.id)).length;
+                      return auction.players.filter(p => soldPlayerIds.has(p.id)).length;
                     })()} players
                   </span>
                 </div>
@@ -85,14 +84,14 @@ const AuctionsPage: React.FC = () => {
 
 const AuctionPage: React.FC = () => {
   const { auctionId } = useParams<{ auctionId: string }>();
-  const { auctions, setCurrentAuction } = useAuction();
+  const { auctions, setCurrentAuctionById } = useAuction();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (auctionId) {
-      setCurrentAuction(auctionId);
+      setCurrentAuctionById(auctionId);
     }
-  }, [auctionId, setCurrentAuction]);
+  }, [auctionId, setCurrentAuctionById]);
 
   const auction = auctions.find(a => a.id === auctionId);
 

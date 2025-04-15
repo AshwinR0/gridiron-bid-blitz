@@ -1,7 +1,7 @@
-
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
-export default {
+const config = {
 	darkMode: ["class"],
 	content: [
 		"./pages/**/*.{ts,tsx}",
@@ -19,6 +19,10 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				sans: ["Roboto", "sans-serif"],
+				heading: ["Chonburi", "serif"],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -65,9 +69,9 @@ export default {
 				},
 				// Custom football auction colors
 				fieldGreen: {
-					DEFAULT: '#3a6f34',
-					light: '#4c8544',
-					dark: '#2a5026',
+					DEFAULT: '#111828',
+					light: '#111828',
+					dark: '#111828',
 				},
 				scoreboardBlack: {
 					DEFAULT: '#222222',
@@ -76,7 +80,17 @@ export default {
 				accentGold: {
 					DEFAULT: '#f0c14b',
 					light: '#f8d57e',
-				}
+				},
+				// Modern theme colors
+				theme: {
+					dark: "#0d1117",
+					darker: "#0a0c10",
+					accent: "#30D5C8",
+					"accent-dark": "#25A69A",
+					"gradient-start": "#111828",
+					"gradient-mid": "#111828",
+					"gradient-end": "#111828",
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -101,11 +115,11 @@ export default {
 					}
 				},
 				'pulse-glow': {
-					'0%, 100%': { 
-						boxShadow: '0 0 0 0 rgba(240, 193, 75, 0.4)' 
+					'0%, 100%': {
+						boxShadow: '0 0 0 0 rgba(48, 213, 200, 0.4)'
 					},
-					'50%': { 
-						boxShadow: '0 0 10px 5px rgba(240, 193, 75, 0.6)' 
+					'50%': {
+						boxShadow: '0 0 10px 5px rgba(48, 213, 200, 0.6)'
 					}
 				}
 			},
@@ -113,8 +127,14 @@ export default {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'pulse-glow': 'pulse-glow 2s infinite'
-			}
+			},
+			backgroundImage: {
+				"gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+				"gradient-theme": "linear-gradient(to right, var(--tw-gradient-stops))",
+			},
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [animate],
 } satisfies Config;
+
+export default config;

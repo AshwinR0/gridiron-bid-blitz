@@ -1,15 +1,34 @@
-
 export type PlayerPosition = 'Forward' | 'Defence' | 'Goalkeeper';
+
+export type ForwardStats = {
+  finishing: number;
+  pace: number;
+  dribbling: number;
+};
+
+export type DefenceStats = {
+  defending: number;
+  physicality: number;
+  aerialSuperiority: number;
+};
+
+export type GoalkeeperStats = {
+  diving: number;
+  reflexes: number;
+  positioning: number;
+};
+
+export type PlayerStats = ForwardStats | DefenceStats | GoalkeeperStats;
 
 export interface Player {
   id: string;
   name: string;
   position: PlayerPosition;
   image?: string;
-  stats?: {
-    [key: string]: number;
-  };
+  stats: PlayerStats;
   purchaseAmount?: number; // Amount player was purchased for
+  team: string;
+  value: number;
 }
 
 export interface Team {
@@ -19,55 +38,61 @@ export interface Team {
   budget: number;
   remainingBudget: number;
   minPlayers: number;
-  players: Array<{
+  maxPlayers: number;
+  color?: string;
+  players: {
     playerId: string;
     purchaseAmount: number;
-  }>;
+  }[];
 }
 
 export interface BidIncrementRule {
-  fromAmount: number;
-  toAmount: number;
-  incrementBy: number;
+  minAmount: number;
+  maxAmount: number;
+  increment: number;
 }
 
 export interface Auction {
   id: string;
   name: string;
   status: 'upcoming' | 'active' | 'completed';
-  minPlayerPrice: number;
   teams: Team[];
-  playerPool: Player[];
-  currentPlayerId?: string;
-  currentBid?: {
-    amount: number;
-    teamId: string;
-  };
-  history: Array<{
-    playerId: string;
+  players: Player[];
+  minPlayerPrice: number;
+  currentBid: {
     teamId: string;
     amount: number;
     timestamp: number;
-  }>;
-  unsoldPlayerIds?: string[]; // IDs of players that were marked as unsold
-  soldPlayerIds?: string[]; // IDs of players that were sold
+  } | null;
+  currentPlayerId: string | null;
+  history: {
+    type: 'bid' | 'unsold' | 'next_player';
+    playerId?: string;
+    teamId?: string;
+    amount?: number;
+    timestamp: number;
+  }[];
   createdAt: number;
   startedAt?: number;
   completedAt?: number;
-  bidIncrementRules?: BidIncrementRule[]; // New field for bidding increment rules
+  unsoldPlayerIds: string[];
+  soldPlayerIds: string[];
+  bidIncrementRules?: BidIncrementRule[];
 }
 
 export interface AuctionContextType {
   auctions: Auction[];
   currentAuction: Auction | null;
   isAdmin: boolean;
-  createAuction: (auction: Omit<Auction, 'id' | 'createdAt' | 'history' | 'status'>) => void;
+  validationError: string | null;
+  createAuction: (auctionData: Omit<Auction, 'id' | 'createdAt' | 'history' | 'status'>) => string | null;
+  updateAuction: (auctionId: string, auctionData: Omit<Auction, 'id' | 'createdAt' | 'history' | 'status'>) => boolean;
   startAuction: (auctionId: string) => void;
   completeAuction: (auctionId: string) => void;
-  setCurrentAuction: (auctionId: string) => void;
+  setCurrentAuctionById: (auctionId: string) => void;
   placeBid: (teamId: string, amount: number) => void;
-  nextPlayer: () => void;
+  updateBidAmount: (amount: number) => void;
   markPlayerUnsold: (playerId: string) => void;
+  nextPlayer: () => void;
   toggleAdmin: () => void;
-  updateBidAmount: (amount: number) => void; // New function to update bid amount
 }

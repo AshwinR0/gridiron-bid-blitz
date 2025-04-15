@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuction } from "@/contexts/AuctionContext";
@@ -6,12 +5,12 @@ import { DollarSign, Gavel, ListFilter, PlusCircle, Trophy, Users } from "lucide
 import { Link } from "react-router-dom";
 
 const Index = () => {
-  const { auctions, isAdmin } = useAuction();
-  
+  const { auctions = [], isAdmin } = useAuction();
+
   // Filter auctions by status
-  const activeAuctions = auctions.filter(a => a.status === 'active');
-  const upcomingAuctions = auctions.filter(a => a.status === 'upcoming');
-  const completedAuctions = auctions.filter(a => a.status === 'completed');
+  const activeAuctions = auctions?.filter(a => a.status === 'active') || [];
+  const upcomingAuctions = auctions?.filter(a => a.status === 'upcoming') || [];
+  const completedAuctions = auctions?.filter(a => a.status === 'completed') || [];
 
   return (
     <div className="container mx-auto p-4">
@@ -43,17 +42,17 @@ const Index = () => {
       <section className="mb-12">
         <h2 className="mb-6 text-center text-3xl font-bold">How It Works</h2>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-          <FeatureCard 
+          <FeatureCard
             icon={<Users className="h-10 w-10 text-fieldGreen" />}
             title="Organize Teams"
             description="Set up teams with customized budgets and player requirements for each auction event."
           />
-          <FeatureCard 
+          <FeatureCard
             icon={<ListFilter className="h-10 w-10 text-fieldGreen" />}
             title="Categorize Players"
             description="Organize players by position: Forwards, Defence, and Goalkeepers with detailed stats."
           />
-          <FeatureCard 
+          <FeatureCard
             icon={<DollarSign className="h-10 w-10 text-fieldGreen" />}
             title="Smart Bidding"
             description="Our system automatically enforces budget constraints and player requirements during bidding."
@@ -71,12 +70,12 @@ const Index = () => {
           </div>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {activeAuctions.slice(0, 3).map(auction => (
-              <AuctionCard 
+              <AuctionCard
                 key={auction.id}
                 id={auction.id}
                 title={auction.name}
                 teams={auction.teams.length}
-                players={auction.playerPool.length}
+                players={auction.players.length}
                 status="active"
               />
             ))}
@@ -91,12 +90,12 @@ const Index = () => {
               <h2 className="mb-4 text-xl font-bold">Upcoming Auctions</h2>
               <div className="space-y-4">
                 {upcomingAuctions.slice(0, 3).map(auction => (
-                  <AuctionCard 
+                  <AuctionCard
                     key={auction.id}
                     id={auction.id}
                     title={auction.name}
                     teams={auction.teams.length}
-                    players={auction.playerPool.length}
+                    players={auction.players.length}
                     status="upcoming"
                     compact
                   />
@@ -110,12 +109,12 @@ const Index = () => {
               <h2 className="mb-4 text-xl font-bold">Recent Results</h2>
               <div className="space-y-4">
                 {completedAuctions.slice(0, 3).map(auction => (
-                  <AuctionCard 
+                  <AuctionCard
                     key={auction.id}
                     id={auction.id}
                     title={auction.name}
                     teams={auction.teams.length}
-                    players={auction.playerPool.length}
+                    players={auction.players.length}
                     status="completed"
                     compact
                   />
@@ -175,11 +174,11 @@ const AuctionCard = ({ id, title, teams, players, status, compact = false }: Auc
   const getStatusIcon = () => {
     switch (status) {
       case 'active':
-        return <Gavel className="h-5 w-5 text-green-500" />;
+        return <Gavel className="h-5 w-5 text-theme-accent" />;
       case 'upcoming':
-        return <Clock className="h-5 w-5 text-blue-500" />;
+        return <Clock className="h-5 w-5 text-blue-400" />;
       case 'completed':
-        return <Trophy className="h-5 w-5 text-accentGold" />;
+        return <Trophy className="h-5 w-5 text-yellow-400" />;
     }
   };
 
@@ -199,8 +198,8 @@ const AuctionCard = ({ id, title, teams, players, status, compact = false }: Auc
       <Card>
         <CardContent className="flex items-center justify-between p-4">
           <div>
-            <h3 className="font-medium">{title}</h3>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <h3 className="font-medium text-foreground/90">{title}</h3>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground/80">
               <span className="flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" /> {teams}
               </span>
@@ -210,11 +209,11 @@ const AuctionCard = ({ id, title, teams, players, status, compact = false }: Auc
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
+            <span className="flex items-center gap-1 rounded-full bg-theme-dark/50 backdrop-blur-sm px-2 py-1 text-xs ring-1 ring-border/10">
               {getStatusIcon()} {getStatusText()}
             </span>
             <Link to={`/auctions/${id}`}>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground">
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -226,31 +225,30 @@ const AuctionCard = ({ id, title, teams, players, status, compact = false }: Auc
 
   return (
     <Card className="overflow-hidden">
-      <div className={`h-2 w-full ${
-        status === 'active' ? 'bg-green-500' : 
-        status === 'upcoming' ? 'bg-blue-500' : 'bg-gray-400'
-      }`} />
+      <div className={`h-2 w-full ${status === 'active' ? 'bg-theme-accent' :
+        status === 'upcoming' ? 'bg-blue-400' : 'bg-gray-400'
+        }`} />
       <CardContent className="p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-xl font-medium">{title}</h3>
-          <span className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs">
+          <h3 className="text-xl font-medium text-foreground/90">{title}</h3>
+          <span className="flex items-center gap-1 rounded-full bg-theme-dark/50 backdrop-blur-sm px-2.5 py-1 text-xs ring-1 ring-border/10">
             {getStatusIcon()} {getStatusText()}
           </span>
         </div>
         <div className="mb-4 grid grid-cols-2 gap-4">
-          <div className="rounded-md bg-muted p-3 text-center">
-            <p className="text-sm text-muted-foreground">Teams</p>
-            <p className="text-2xl font-medium">{teams}</p>
+          <div className="rounded-md bg-theme-dark/50 backdrop-blur-sm p-3 text-center ring-1 ring-border/10">
+            <p className="text-sm text-muted-foreground/80">Teams</p>
+            <p className="text-2xl font-medium text-foreground/90">{teams}</p>
           </div>
-          <div className="rounded-md bg-muted p-3 text-center">
-            <p className="text-sm text-muted-foreground">Players</p>
-            <p className="text-2xl font-medium">{players}</p>
+          <div className="rounded-md bg-theme-dark/50 backdrop-blur-sm p-3 text-center ring-1 ring-border/10">
+            <p className="text-sm text-muted-foreground/80">Players</p>
+            <p className="text-2xl font-medium text-foreground/90">{players}</p>
           </div>
         </div>
         <Link to={`/auctions/${id}`} className="block w-full">
-          <Button className="w-full">
-            {status === 'active' ? 'Join Auction' : 
-             status === 'upcoming' ? 'View Details' : 'View Results'}
+          <Button className="w-full bg-theme-accent hover:bg-theme-accent-dark text-white">
+            {status === 'active' ? 'Join Auction' :
+              status === 'upcoming' ? 'View Details' : 'View Results'}
           </Button>
         </Link>
       </CardContent>

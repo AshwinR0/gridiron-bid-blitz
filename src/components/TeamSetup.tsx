@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,31 +7,27 @@ import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 interface TeamSetupProps {
+  onAddTeam: (team: Omit<Team, 'id' | 'remainingBudget' | 'players'>) => void;
+  onRemoveTeam: (index: number) => void;
   teams: Team[];
-  onAddTeam: (team: Team) => void;
-  onRemoveTeam: (id: string) => void;
 }
 
-const TeamSetup = ({ teams, onAddTeam, onRemoveTeam }: TeamSetupProps) => {
+const TeamSetup: React.FC<TeamSetupProps> = ({ onAddTeam, onRemoveTeam, teams }) => {
   const [teamName, setTeamName] = useState("");
-  const [budget, setBudget] = useState(1000);
-  const [minPlayers, setMinPlayers] = useState(11);
+  const [budget, setBudget] = useState<number>(1000);
+  const [minPlayers, setMinPlayers] = useState<number>(5);
 
-  const handleAddTeam = () => {
-    if (!teamName || budget <= 0 || minPlayers <= 0) {
-      return;
-    }
+  const handleSubmit = () => {
+    if (!teamName || budget <= 0 || minPlayers <= 0) return;
 
-    const newTeam: Team = {
-      id: Math.random().toString(36).substring(2, 10),
+    onAddTeam({
       name: teamName,
       budget,
-      remainingBudget: budget,
       minPlayers,
-      players: []
-    };
+      maxPlayers: minPlayers
+    });
 
-    onAddTeam(newTeam);
+    // Reset form
     setTeamName("");
   };
 
@@ -41,19 +36,20 @@ const TeamSetup = ({ teams, onAddTeam, onRemoveTeam }: TeamSetupProps) => {
       <div className="space-y-4">
         <div>
           <Label htmlFor="teamName">Team Name</Label>
-          <Input 
-            id="teamName" 
+          <Input
+            id="teamName"
             placeholder="Enter team name"
             value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
           />
         </div>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <Label htmlFor="budget">Budget</Label>
-            <Input 
-              id="budget" 
-              type="number" 
+            <Input
+              id="budget"
+              type="number"
               placeholder="Team's total budget"
               value={budget}
               onChange={(e) => setBudget(Number(e.target.value))}
@@ -61,53 +57,51 @@ const TeamSetup = ({ teams, onAddTeam, onRemoveTeam }: TeamSetupProps) => {
           </div>
           <div>
             <Label htmlFor="minPlayers">Minimum Players</Label>
-            <Input 
-              id="minPlayers" 
-              type="number" 
+            <Input
+              id="minPlayers"
+              type="number"
               placeholder="Minimum players to acquire"
               value={minPlayers}
               onChange={(e) => setMinPlayers(Number(e.target.value))}
             />
           </div>
         </div>
-        <Button 
-          className="w-full" 
-          onClick={handleAddTeam}
+        <Button
+          className="w-full"
+          onClick={handleSubmit}
           disabled={!teamName || budget <= 0 || minPlayers <= 0}
         >
           <Plus className="mr-2 h-4 w-4" /> Add Team
         </Button>
       </div>
 
-      <div>
-        <h3 className="mb-2 text-lg font-medium">Teams ({teams.length})</h3>
-        <div className="space-y-2">
-          {teams.length === 0 ? (
-            <p className="text-center text-muted-foreground">No teams added yet</p>
-          ) : (
-            teams.map(team => (
+      {teams.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="font-medium">Added Teams</h3>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {teams.map((team, index) => (
               <Card key={team.id}>
                 <CardContent className="flex items-center justify-between p-4">
                   <div>
-                    <h4 className="font-medium">{team.name}</h4>
+                    <p className="font-medium">{team.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Budget: {team.budget} | Min Players: {team.minPlayers}
+                      Budget: ${team.budget} • Min Players: {team.minPlayers}
                     </p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-red-500 hover:bg-red-50 hover:text-red-600"
-                    onClick={() => onRemoveTeam(team.id)}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onRemoveTeam(index)}
+                    className="text-destructive hover:text-destructive/90"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </CardContent>
               </Card>
-            ))
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

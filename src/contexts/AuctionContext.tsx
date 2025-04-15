@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from "react";
 import { Auction, AuctionContextType } from "@/types";
 import { initialAuctions } from "@/data/mockData";
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 const AuctionContext = createContext<AuctionContextType | undefined>(undefined);
 
@@ -17,8 +17,52 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [auctions, setAuctions] = useState<Auction[]>(initialAuctions);
   const [currentAuction, setCurrentAuction] = useState<Auction | null>(null);
   const [isAdmin, setIsAdmin] = useState(true); // Default to admin for demo purposes
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const createAuction = (auctionData: Omit<Auction, 'id' | 'createdAt' | 'history' | 'status'>) => {
+    // Reset validation error at the start
+    setValidationError(null);
+
+    // Calculate total minimum players required across all teams
+    const totalMinPlayersRequired = auctionData.teams.reduce((total, team) => {
+      return total + team.minPlayers;
+    }, 0);
+
+    // Check if there are enough players
+    if (auctionData.players.length < totalMinPlayersRequired) {
+      const errorMessage = `You need at least ${totalMinPlayersRequired} players for ${auctionData.teams.length} teams. Currently only ${auctionData.players.length} players available.`;
+      setValidationError(errorMessage);
+      toast.error("Insufficient Players", {
+        description: errorMessage,
+      });
+      return null;
+    }
+
+    // Check if there are enough teams
+    if (auctionData.teams.length < 2) {
+      const errorMessage = "You need at least 2 teams to create an auction.";
+      setValidationError(errorMessage);
+      toast.error("Insufficient Teams", {
+        description: errorMessage,
+      });
+      return null;
+    }
+
+    // Check if all teams have valid budgets
+    const teamsWithInvalidBudgets = auctionData.teams.filter(team =>
+      team.budget < auctionData.minPlayerPrice * team.minPlayers
+    );
+
+    if (teamsWithInvalidBudgets.length > 0) {
+      const teamNames = teamsWithInvalidBudgets.map(team => team.name).join(", ");
+      const errorMessage = `The following teams don't have enough budget to meet their minimum player requirements: ${teamNames}`;
+      setValidationError(errorMessage);
+      toast.error("Invalid Team Budgets", {
+        description: errorMessage,
+      });
+      return null;
+    }
+
     const newAuction: Auction = {
       ...auctionData,
       id: Math.random().toString(36).substring(2, 10),
@@ -30,11 +74,88 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     setAuctions([...auctions, newAuction]);
-    toast({
-      title: "Auction Created",
+    toast.success("Auction Created", {
       description: `${newAuction.name} has been created successfully.`,
     });
     return newAuction.id;
+  };
+
+  const updateAuction = (auctionId: string, auctionData: Omit<Auction, 'id' | 'createdAt' | 'history' | 'status'>) => {
+    // Reset validation error at the start
+    setValidationError(null);
+
+    // Calculate total minimum players required across all teams
+    const totalMinPlayersRequired = auctionData.teams.reduce((total, team) => {
+      return total + team.minPlayers;
+    }, 0);
+
+    // Check if there are enough players
+    if (auctionData.players.length < totalMinPlayersRequired) {
+      const errorMessage = `You need at least ${totalMinPlayersRequired} players for ${auctionData.teams.length} teams. Currently only ${auctionData.players.length} players available.`;
+      setValidationError(errorMessage);
+      toast.error("Insufficient Players", {
+        description: errorMessage,
+      });
+      return false;
+    }
+
+    // Check if there are enough teams
+    if (auctionData.teams.length < 2) {
+      const errorMessage = "You need at least 2 teams to create an auction.";
+      setValidationError(errorMessage);
+      toast.error("Insufficient Teams", {
+        description: errorMessage,
+      });
+      return false;
+    }
+
+    // Check if all teams have valid budgets
+    const teamsWithInvalidBudgets = auctionData.teams.filter(team =>
+      team.budget < auctionData.minPlayerPrice * team.minPlayers
+    );
+
+    if (teamsWithInvalidBudgets.length > 0) {
+      const teamNames = teamsWithInvalidBudgets.map(team => team.name).join(", ");
+      const errorMessage = `The following teams don't have enough budget to meet their minimum player requirements: ${teamNames}`;
+      setValidationError(errorMessage);
+      toast.error("Invalid Team Budgets", {
+        description: errorMessage,
+      });
+      return false;
+    }
+
+    // Update the auction
+    setAuctions(prevAuctions =>
+      prevAuctions.map(auction =>
+        auction.id === auctionId
+          ? {
+            ...auction,
+            ...auctionData,
+            id: auctionId,
+            status: auction.status,
+            createdAt: auction.createdAt,
+            history: auction.history
+          }
+          : auction
+      )
+    );
+
+    // Update current auction if it's the one being edited
+    if (currentAuction?.id === auctionId) {
+      setCurrentAuction(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          ...auctionData,
+          id: auctionId,
+          status: prev.status,
+          createdAt: prev.createdAt,
+          history: prev.history
+        };
+      });
+    }
+
+    return true;
   };
 
   const startAuction = (auctionId: string) => {
@@ -64,35 +185,76 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
     }
 
-    toast({
-      title: "Auction Started",
+    toast.success("Auction Started", {
       description: "The auction has begun! Select a player to start bidding.",
     });
   };
 
   const completeAuction = (auctionId: string) => {
+    const auction = auctions.find(a => a.id === auctionId);
+    if (!auction) return;
+
+    // Get all sold players with their details from the auction history
+    const soldPlayerDetails = auction.history
+      .filter(h => h.type === 'next_player')
+      .reduce((acc, h) => {
+        acc[h.playerId] = {
+          teamId: h.teamId,
+          amount: h.amount
+        };
+        return acc;
+      }, {} as Record<string, { teamId: string; amount: number }>);
+
+    // Update teams with their purchased players and remaining budgets
+    const updatedTeams = auction.teams.map(team => {
+      const teamPurchases = Object.entries(soldPlayerDetails)
+        .filter(([_, details]) => details.teamId === team.id)
+        .map(([playerId, details]) => ({
+          playerId,
+          purchaseAmount: details.amount
+        }));
+
+      return {
+        ...team,
+        players: teamPurchases,
+        remainingBudget: team.budget - teamPurchases.reduce((sum, p) => sum + p.purchaseAmount, 0)
+      };
+    });
+
+    // Get all sold player IDs
+    const soldPlayerIds = Object.keys(soldPlayerDetails);
+
+    const updatedAuction = {
+      ...auction,
+      status: 'completed' as const,
+      completedAt: Date.now(),
+      teams: updatedTeams,
+      soldPlayerIds: soldPlayerIds,
+      players: auction.players.map(player => {
+        const soldDetails = soldPlayerDetails[player.id];
+        if (soldDetails) {
+          return {
+            ...player,
+            purchaseAmount: soldDetails.amount,
+            team: soldDetails.teamId
+          };
+        }
+        return player;
+      })
+    };
+
     setAuctions(prevAuctions =>
-      prevAuctions.map(auction =>
-        auction.id === auctionId
-          ? { ...auction, status: 'completed', completedAt: Date.now() }
-          : auction
+      prevAuctions.map(a =>
+        a.id === auctionId ? updatedAuction : a
       )
     );
 
     if (currentAuction?.id === auctionId) {
-      setCurrentAuction(prevAuction => {
-        if (!prevAuction) return null;
-        return {
-          ...prevAuction,
-          status: 'completed',
-          completedAt: Date.now()
-        };
-      });
+      setCurrentAuction(updatedAuction);
     }
 
-    toast({
-      title: "Auction Completed",
-      description: "The auction has been marked as complete.",
+    toast.success("Auction Completed", {
+      description: "The auction has been completed successfully. View the results in the auction details.",
     });
   };
 
@@ -102,354 +264,206 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const placeBid = (teamId: string, amount: number) => {
-    if (!currentAuction) {
-      toast({
-        title: "Bid Error",
-        description: "No active auction for bidding.",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!currentAuction) return;
 
-    if (!currentAuction.currentPlayerId) {
-      toast({
-        title: "Bid Error",
-        description: "No player selected for bidding.",
-        variant: "destructive"
-      });
-      return;
-    }
+    const updatedAuction = {
+      ...currentAuction,
+      currentBid: {
+        teamId,
+        amount,
+        timestamp: Date.now(),
+      },
+      history: [
+        ...currentAuction.history,
+        {
+          type: 'bid' as const,
+          teamId,
+          amount,
+          timestamp: Date.now(),
+        },
+      ],
+    };
 
-    const team = currentAuction.teams.find(t => t.id === teamId);
-    if (!team) {
-      toast({
-        title: "Bid Error",
-        description: "Team not found.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (team.remainingBudget < amount) {
-      toast({
-        title: "Bid Error",
-        description: "Insufficient budget to place this bid.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (amount < currentAuction.minPlayerPrice) {
-      toast({
-        title: "Bid Error",
-        description: `Bid must be at least ${currentAuction.minPlayerPrice}.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (amount <= currentAuction.currentBid?.amount) {
-      toast({
-        title: "Bid Error",
-        description: `Bid must be higher than current bid of ${currentAuction.currentBid?.amount}.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
-    const minBudgetNeeded = playersNeeded > 1 ? (playersNeeded - 1) * currentAuction.minPlayerPrice : 0;
-    const maxPossibleBid = team.remainingBudget - minBudgetNeeded;
-
-    if (playersNeeded > 1 && amount > maxPossibleBid) {
-      toast({
-        title: "Bid Error",
-        description: `Bid exceeds maximum allowed. You must reserve at least ${minBudgetNeeded} for ${playersNeeded - 1} more players.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
+    setCurrentAuction(updatedAuction);
     setAuctions(prevAuctions =>
       prevAuctions.map(auction =>
-        auction.id === currentAuction.id
-          ? {
-            ...auction,
-            currentBid: { amount, teamId },
-            history: [
-              ...auction.history,
-              {
-                playerId: auction.currentPlayerId || "",
-                teamId,
-                amount,
-                timestamp: Date.now()
-              }
-            ]
-          }
-          : auction
+        auction.id === currentAuction.id ? updatedAuction : auction
       )
     );
 
-    setCurrentAuction(prevAuction => {
-      if (!prevAuction) return null;
-      return {
-        ...prevAuction,
-        currentBid: { amount, teamId },
-        history: [
-          ...prevAuction.history,
-          {
-            playerId: prevAuction.currentPlayerId || "",
-            teamId,
-            amount,
-            timestamp: Date.now()
-          }
-        ]
-      };
-    });
-
-    toast({
-      title: "Bid Placed",
-      description: `${team.name} placed a bid of ${amount}.`,
+    toast.success("Bid Placed", {
+      description: `Bid of $${amount} placed successfully.`,
     });
   };
 
   const updateBidAmount = (amount: number) => {
-    if (!currentAuction || !currentAuction.currentBid) {
-      toast({
-        title: "Error",
-        description: "No active bid to update.",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!currentAuction) return;
 
-    if (!currentAuction.currentPlayerId) {
-      toast({
-        title: "Error",
-        description: "No player selected for bidding.",
-        variant: "destructive"
-      });
-      return;
-    }
+    const updatedAuction = {
+      ...currentAuction,
+      currentBid: currentAuction.currentBid
+        ? {
+          ...currentAuction.currentBid,
+          amount,
+          timestamp: Date.now(),
+        }
+        : null,
+    };
 
-    const teamId = currentAuction.currentBid.teamId;
-    const team = currentAuction.teams.find(t => t.id === teamId);
-    if (!team) {
-      toast({
-        title: "Error",
-        description: "Team not found.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (amount < currentAuction.minPlayerPrice) {
-      toast({
-        title: "Error",
-        description: `Bid amount must be at least ${currentAuction.minPlayerPrice}.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (amount > team.remainingBudget) {
-      toast({
-        title: "Error",
-        description: "Updated amount exceeds team's remaining budget.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
-    const minBudgetNeeded = playersNeeded > 1 ? (playersNeeded - 1) * currentAuction.minPlayerPrice : 0;
-    const maxPossibleBid = team.remainingBudget - minBudgetNeeded;
-
-    if (playersNeeded > 1 && amount > maxPossibleBid) {
-      toast({
-        title: "Bid Error",
-        description: `Bid exceeds maximum allowed. You must reserve at least ${minBudgetNeeded} for ${playersNeeded - 1} more players.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
+    setCurrentAuction(updatedAuction);
     setAuctions(prevAuctions =>
       prevAuctions.map(auction =>
-        auction.id === currentAuction.id
-          ? {
-            ...auction,
-            currentBid: { ...auction.currentBid!, amount },
-            history: auction.history.map((item, index) => {
-              if (index === auction.history.length - 1 && item.playerId === auction.currentPlayerId) {
-                return { ...item, amount };
-              }
-              return item;
-            })
-          }
-          : auction
+        auction.id === currentAuction.id ? updatedAuction : auction
       )
     );
-
-    setCurrentAuction(prevAuction => {
-      if (!prevAuction) return null;
-      return {
-        ...prevAuction,
-        currentBid: { ...prevAuction.currentBid!, amount },
-        history: prevAuction.history.map((item, index) => {
-          if (index === prevAuction.history.length - 1 && item.playerId === prevAuction.currentPlayerId) {
-            return { ...item, amount };
-          }
-          return item;
-        })
-      };
-    });
-
-    toast({
-      title: "Bid Updated",
-      description: `${team.name}'s bid has been updated to ${amount}.`,
-    });
   };
 
   const markPlayerUnsold = (playerId: string) => {
-    if (!currentAuction) {
-      toast({
-        title: "Action Failed",
-        description: "No active auction.",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!currentAuction) return;
 
+    const updatedAuction = {
+      ...currentAuction,
+      unsoldPlayerIds: [...currentAuction.unsoldPlayerIds, playerId],
+      history: [
+        ...currentAuction.history,
+        {
+          type: 'unsold' as const,
+          playerId,
+          timestamp: Date.now(),
+        },
+      ],
+    };
+
+    setCurrentAuction(updatedAuction);
     setAuctions(prevAuctions =>
       prevAuctions.map(auction =>
-        auction.id === currentAuction.id
-          ? {
-            ...auction,
-            unsoldPlayerIds: [...(auction.unsoldPlayerIds || []), playerId],
-            currentBid: undefined,
-            currentPlayerId: undefined
-          }
-          : auction
+        auction.id === currentAuction.id ? updatedAuction : auction
       )
     );
 
-    setCurrentAuction(prevAuction => {
-      if (!prevAuction) return null;
-      return {
-        ...prevAuction,
-        unsoldPlayerIds: [...(prevAuction.unsoldPlayerIds || []), playerId],
-        currentBid: undefined,
-        currentPlayerId: undefined
-      };
-    });
-
-    toast({
-      title: "Player Unsold",
-      description: "Player has been marked as unsold and will be available for the next round.",
+    toast.success("Player Marked Unsold", {
+      description: "The player has been marked as unsold.",
     });
   };
 
   const nextPlayer = () => {
-    if (!currentAuction || currentAuction.status !== 'active') {
-      toast({
-        title: "Action Failed",
-        description: "No active auction or auction is not in progress.",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!currentAuction) return;
 
-    if (!currentAuction.currentPlayerId) {
-      toast({
-        title: "Action Failed",
-        description: "Please select a player first.",
-        variant: "destructive"
-      });
-      return;
-    }
+    const currentPlayer = currentAuction.players.find(p => p.id === currentAuction.currentPlayerId);
+    if (!currentPlayer) return;
 
-    if (currentAuction.currentBid) {
-      const { teamId, amount } = currentAuction.currentBid;
-      const playerId = currentAuction.currentPlayerId;
-
-      const teamToUpdate = currentAuction.teams.find(team => team.id === teamId);
-      if (!teamToUpdate) {
-        toast({
-          title: "Error",
-          description: "Team not found.",
-          variant: "destructive"
-        });
-        return;
-      }
-
+    const currentBid = currentAuction.currentBid;
+    if (currentBid) {
+      // Update the winning team's players and remaining budget
       const updatedTeams = currentAuction.teams.map(team => {
-        if (team.id === teamId) {
+        if (team.id === currentBid.teamId) {
           return {
             ...team,
-            players: [...team.players, { playerId, purchaseAmount: amount }],
-            remainingBudget: team.remainingBudget - amount
+            players: [...team.players, { playerId: currentPlayer.id, purchaseAmount: currentBid.amount }],
+            remainingBudget: team.remainingBudget - currentBid.amount
           };
         }
         return team;
       });
 
+      // Update the player's team and purchase amount
+      const updatedPlayers = currentAuction.players.map(player => {
+        if (player.id === currentPlayer.id) {
+          return {
+            ...player,
+            team: currentBid.teamId,
+            purchaseAmount: currentBid.amount
+          };
+        }
+        return player;
+      });
+
+      const updatedAuction: Auction = {
+        ...currentAuction,
+        teams: updatedTeams,
+        players: updatedPlayers,
+        currentBid: null,
+        currentPlayerId: null,
+        soldPlayerIds: [...currentAuction.soldPlayerIds, currentPlayer.id],
+        history: [
+          ...currentAuction.history,
+          {
+            type: 'next_player' as const,
+            playerId: currentPlayer.id,
+            teamId: currentBid.teamId,
+            amount: currentBid.amount,
+            timestamp: Date.now()
+          }
+        ]
+      };
+
+      // Update both states synchronously
       setAuctions(prevAuctions =>
         prevAuctions.map(auction =>
-          auction.id === currentAuction.id
-            ? {
-              ...auction,
-              teams: updatedTeams,
-              currentPlayerId: undefined,
-              currentBid: undefined,
-              soldPlayerIds: [...(auction.soldPlayerIds || []), currentAuction.currentPlayerId],
-              unsoldPlayerIds: auction.unsoldPlayerIds?.filter(id => id !== currentAuction.currentPlayerId)
-            }
-            : auction
+          auction.id === currentAuction.id ? updatedAuction : auction
+        )
+      );
+      setCurrentAuction(updatedAuction);
+
+      toast.success("Player Sold", {
+        description: `${currentPlayer.name} has been sold to ${currentAuction.teams.find(t => t.id === currentBid.teamId)?.name} for $${currentBid.amount}`,
+      });
+    } else {
+      // No bid was placed, mark player as unsold
+      const updatedAuction: Auction = {
+        ...currentAuction,
+        currentBid: null,
+        currentPlayerId: null,
+        unsoldPlayerIds: [...currentAuction.unsoldPlayerIds, currentPlayer.id],
+        history: [
+          ...currentAuction.history,
+          {
+            type: 'unsold' as const,
+            playerId: currentPlayer.id,
+            timestamp: Date.now()
+          }
+        ]
+      };
+
+      setCurrentAuction(updatedAuction);
+      setAuctions(prevAuctions =>
+        prevAuctions.map(auction =>
+          auction.id === currentAuction.id ? updatedAuction : auction
         )
       );
 
-      setCurrentAuction(prevAuction => {
-        if (!prevAuction) return null;
-        return {
-          ...prevAuction,
-          teams: updatedTeams,
-          currentPlayerId: undefined,
-          currentBid: undefined,
-          soldPlayerIds: [...(prevAuction.soldPlayerIds || []), currentAuction.currentPlayerId]
-        };
+      toast.success("Player Marked Unsold", {
+        description: `${currentPlayer.name} has been marked as unsold.`,
       });
-
-      toast({
-        title: "Player Sold",
-        description: `Player assigned to team. Select the next player for bidding.`,
-      });
-    } else {
-      markPlayerUnsold(currentAuction.currentPlayerId);
     }
   };
 
   const toggleAdmin = () => {
     setIsAdmin(prev => !prev);
-  };
-
-  const value: AuctionContextType = {
-    auctions,
-    currentAuction,
-    isAdmin,
-    createAuction,
-    startAuction,
-    completeAuction,
-    setCurrentAuction: setCurrentAuctionById,
-    placeBid,
-    nextPlayer,
-    markPlayerUnsold,
-    toggleAdmin,
-    updateBidAmount
+    toast.success("Mode Changed", {
+      description: `Switched to ${!isAdmin ? 'Admin' : 'User'} mode.`,
+    });
   };
 
   return (
-    <AuctionContext.Provider value={value}>
+    <AuctionContext.Provider
+      value={{
+        auctions,
+        currentAuction,
+        isAdmin,
+        validationError,
+        createAuction,
+        updateAuction,
+        startAuction,
+        completeAuction,
+        setCurrentAuctionById,
+        placeBid,
+        updateBidAmount,
+        markPlayerUnsold,
+        nextPlayer,
+        toggleAdmin,
+      }}
+    >
       {children}
     </AuctionContext.Provider>
   );
