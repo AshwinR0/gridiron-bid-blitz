@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuction } from '@/contexts/AuctionContext';
-import { BidIncrementRule, Player, Team } from '@/types';
+import { Player, Team } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { ConfettiButton } from "@/registry/magicui/confetti";
+import PlayerSoldModal from '@/components/PlayerSoldModal';
 
 interface AuctionManagerProps {
   auctionId: string;
@@ -35,6 +37,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
   const [positionFilter, setPositionFilter] = useState<string | null>(null);
   const [editingBid, setEditingBid] = useState(false);
   const [editedBidAmount, setEditedBidAmount] = useState('');
+  const [soldModalData, setSoldModalData] = useState<{ player: Player; team: Team; purchaseAmount: number } | null>(null);
 
   // Set current auction if not already set
   useEffect(() => {
@@ -120,6 +123,24 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
     if (!selectedPlayerForBidding) {
       toast.error("Please select a player first");
       return;
+    }
+
+    if (auction.currentBid) {
+      const soldPlayer = auction.players.find(p => p.id === selectedPlayerForBidding);
+      const soldToTeam = auction.teams.find(t => t.id === auction.currentBid?.teamId);
+
+      if (soldPlayer && soldToTeam) {
+        // Remove from unsold list if the player was previously unsold
+        if (unsoldPlayerIds.has(soldPlayer.id)) {
+          auction.unsoldPlayerIds = auction.unsoldPlayerIds.filter(id => id !== soldPlayer.id);
+        }
+
+        setSoldModalData({
+          player: soldPlayer,
+          team: soldToTeam,
+          purchaseAmount: auction.currentBid.amount
+        });
+      }
     }
 
     nextPlayer();
@@ -209,7 +230,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
 
   // Check if all players are sold
   const allPlayersSold = auction.players.every(player =>
-    auction.soldPlayerIds.includes(player.id) || auction.unsoldPlayerIds.includes(player.id)
+    auction.soldPlayerIds.includes(player.id)
   );
 
   const handleCompleteAuction = () => {
@@ -217,10 +238,16 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
     toast.success("Auction completed successfully!");
   };
 
-  console.log(currentPlayer)
-
   return (
     <div className="space-y-6">
+      {soldModalData && (
+        <PlayerSoldModal
+          player={soldModalData.player}
+          team={soldModalData.team}
+          purchaseAmount={soldModalData.purchaseAmount}
+          onClose={() => setSoldModalData(null)}
+        />
+      )}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Auction Manager: {auction.name}</h2>
         <div className="flex space-x-2">
@@ -233,13 +260,19 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
               >
                 Complete Auction
               </Button>
-            ) : (
-              <Button
-                variant="outline"
+            ) : (auction.currentBid ? (
+              <ConfettiButton
                 onClick={handleNextPlayer}
                 disabled={auction.status !== 'active' || !selectedPlayerForBidding}
               >
-                {auction.currentBid ? "Sell" : "Unsold"}
+                {"Sell"}
+              </ConfettiButton>) :
+              <Button
+                variant='outline'
+                onClick={handleNextPlayer}
+                disabled={auction.status !== 'active' || !selectedPlayerForBidding}
+              >
+                {"Unsold"}
               </Button>
             )
           )}
@@ -298,7 +331,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                                 <div className="flex flex-wrap gap-1">
                                   {player.stats && Object.entries(player.stats).map(([key, value]) => (
                                     <span key={key} className="text-xs">
-                                      {key}: {value}
+                                      {key}: {String(value)}
                                     </span>
                                   )).slice(0, 2)}
                                   {player.stats && Object.keys(player.stats).length > 2 &&
@@ -368,7 +401,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                             <div className="flex flex-wrap gap-2 mt-2">
                               {currentPlayer.stats && Object.entries(currentPlayer.stats).map(([key, value]) => (
                                 <span key={key} className="px-2 py-1 bg-background border rounded text-xs">
-                                  {key}: {value}
+                                  {key}: {String(value)}
                                 </span>
                               ))}
                             </div>
@@ -547,7 +580,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                       <div className="max-h-[400px] overflow-y-auto border rounded-md">
                         {Object.entries(playersByPosition).map(([position, players]) => {
                           // Filter players by position and get available ones
-                          const availablePlayers = filterPlayers(players.filter(
+                          const availablePlayers = filterPlayers((players as Player[]).filter(
                             p => auction.status === 'completed'
                               ? true  // Show all players when auction is completed
                               : !soldPlayerIds.has(p.id) &&
@@ -707,7 +740,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                                       <div className="flex flex-wrap gap-1">
                                         {player.stats && Object.entries(player.stats).map(([key, value]) => (
                                           <span key={key} className="text-xs">
-                                            {key}: {value}
+                                            {key}: {String(value)}
                                           </span>
                                         )).slice(0, 2)}
                                         {player.stats && Object.keys(player.stats).length > 2 &&
