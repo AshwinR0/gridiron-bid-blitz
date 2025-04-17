@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { useAuction } from "@/contexts/AuctionContext";
-import { Gavel, Home, Settings, User } from "lucide-react";
+import { Home, Settings, User, Gavel } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import auctionBuddyLogo from "@/assets/Auction_buddy.png";
+import { AuroraText } from "@/components/ui/aurora-text";
 
 const NavBar = () => {
   const { isAdmin, toggleAdmin } = useAuction();
@@ -12,8 +14,9 @@ const NavBar = () => {
       <div className="flex h-full flex-col">
         <div className="flex items-center gap-2 p-4">
           <Link to="/" className="flex items-center gap-2 transition-transform hover:scale-105">
-            <Gavel className="h-8 w-8 text-accentGold" />
-            <span className="text-xl font-bold text-white">Gridiron Bid Blitz</span>
+            <img src={auctionBuddyLogo} alt="Auction Buddy" className="h-12 w-auto" />
+            <AuroraText className="text-1xl md:text-1xl font-bold">Auction Buddy</AuroraText>
+            {/* <span className="text-xl font-bold text-white">Auction Buddy</span> */}
           </Link>
         </div>
 
