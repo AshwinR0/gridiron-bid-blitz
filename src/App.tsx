@@ -10,37 +10,42 @@ import { AuctionProvider } from "./contexts/AuctionContext";
 import AdminDashboard from "./components/AdminDashboard";
 import CreateAuctionForm from "./components/CreateAuctionForm";
 import { AuctionsPage, AuctionPage } from "./pages/AuctionsPage";
+import { useIsMobile } from "@/hooks/use-mobile"; // Import the hook
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuctionProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <div className="flex min-h-screen">
-            <NavBar />
-            <main className="flex-1 pl-64">
-              <div className="container mx-auto p-8">
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/admin/create-auction" element={<CreateAuctionForm />} />
-                  <Route path="/admin/edit-auction/:auctionId" element={<CreateAuctionForm />} />
-                  <Route path="/auctions" element={<AuctionsPage />} />
-                  <Route path="/auctions/:auctionId" element={<AuctionPage />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </div>
-            </main>
-          </div>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuctionProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const isMobile = useIsMobile(); // Detect mobile view
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuctionProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <div className="flex min-h-screen">
+              <NavBar />
+              <main className={`flex-1 ${isMobile ? "pl-0" : "pl-64"}`}> {/* Adjust padding dynamically */}
+                <div className="container mx-auto p-8">
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="/admin/create-auction" element={<CreateAuctionForm />} />
+                    <Route path="/admin/edit-auction/:auctionId" element={<CreateAuctionForm />} />
+                    <Route path="/auctions" element={<AuctionsPage />} />
+                    <Route path="/auctions/:auctionId" element={<AuctionPage />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </div>
+              </main>
+            </div>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuctionProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
