@@ -208,10 +208,10 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Update teams with their purchased players and remaining budgets
     const updatedTeams = auction.teams.map(team => {
       const teamPurchases = Object.entries(soldPlayerDetails)
-        .filter(([_, details]) => details.teamId === team.id)
+        .filter(([_, details]) => (details as { teamId: string; amount: number }).teamId === team.id)
         .map(([playerId, details]) => ({
           playerId,
-          purchaseAmount: details.amount
+          purchaseAmount: (details as { teamId: string; amount: number }).amount
         }));
 
       return {
@@ -404,10 +404,6 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         )
       );
       setCurrentAuction(updatedAuction);
-
-      toast.success("Player Sold", {
-        description: `${currentPlayer.name} has been sold to ${currentAuction.teams.find(t => t.id === currentBid.teamId)?.name} for $${currentBid.amount}`,
-      });
     } else {
       // No bid was placed, mark player as unsold
       const updatedAuction: Auction = {
