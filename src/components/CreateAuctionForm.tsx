@@ -11,6 +11,7 @@ import TeamSetup from "./TeamSetup";
 import PlayerList from "./PlayerList";
 import { Plus, Trash } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabaseClient"; // Import Supabase client
 
 const CreateAuctionForm = () => {
   const { createAuction, updateAuction, auctions, validationError } = useAuction();
@@ -129,7 +130,7 @@ const CreateAuctionForm = () => {
     return true;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateStep()) return;
 
     const auctionData: Omit<Auction, 'id' | 'createdAt' | 'history' | 'status'> = {
@@ -155,10 +156,102 @@ const CreateAuctionForm = () => {
       }
     } else {
       // Create new auction
-      const newAuctionId = createAuction(auctionData);
-      if (newAuctionId) {
-        navigate("/admin");
+      // Add auction to Supabase
+      const { data: auctionData, error: auctionError } = await supabase
+        .from("auctions")
+        .insert({
+          name: auctionName,
+          min_player_price: minPlayerPrice,
+          status: "upcoming",
+          created_at: new Date().toISOString()
+        })
+        .select("id");
+
+      if (auctionError || !auctionData) {
+        console.error("Error adding auction to Supabase:", auctionError);
+        toast.error("Failed to create the auction in the database.");
+        return;
       }
+
+      const newAuctionId = auctionData[0].id;
+
+      // Add bid increment rules to Supabase
+      const { error: bidRulesError } = await supabase
+        .from("bid_increment_rules")
+        .insert(bidIncrementRules.map(rule => ({
+          auction_id: newAuctionId,
+          min_amount: rule.minAmount,
+          max_amount: rule.maxAmount,
+          increment: rule.increment
+        })));
+
+      if (bidRulesError) {
+        console.error("Error adding bid increment rules to Supabase:", bidRulesError);
+        toast.error("Failed to add bid increment rules to the database.");
+        return;
+      }
+
+      // Add teams to Supabase
+      const { error: teamError } = await supabase
+        .from("teams")
+        .insert(teams.map(team => ({
+          id: team.id,
+          name: team.name,
+          budget: team.budget,
+          remaining_budget: team.budget,
+          min_players: team.minPlayers,
+          auction_id: newAuctionId
+        })));
+
+      if (teamError) {
+        console.error("Error adding teams to Supabase:", teamError);
+        toast.error("Failed to add teams to the database.");
+        return;
+      }
+
+      // Update team_players table
+      const teamPlayersData = teams.flatMap(team =>
+        team.players.map(playerId => ({
+          team_id: team.id,
+          player_id: playerId,
+          auction_id: newAuctionId,
+          purchase_amount: 0,
+          created_at: new Date().toISOString()
+        }))
+      );
+
+      const { error: teamPlayersError } = await supabase
+        .from("team_players")
+        .insert(teamPlayersData);
+
+      if (teamPlayersError) {
+        console.error("Error updating team_players table in Supabase:", teamPlayersError);
+        toast.error("Failed to update team players in the database.");
+        return;
+      }
+
+      // Update auction_players table
+      const auctionPlayersData = players.map(player => ({
+        auction_id: newAuctionId,
+        player_id: player.id,
+        value: 0,
+        is_auctioned: false,
+        sold_price: null,
+        selling_team_id: null
+      }));
+
+      const { error: auctionPlayersError } = await supabase
+        .from("auction_players")
+        .insert(auctionPlayersData);
+
+      if (auctionPlayersError) {
+        console.error("Error updating auction_players table in Supabase:", auctionPlayersError);
+        toast.error("Failed to update auction players in the database.");
+        return;
+      }
+
+      toast.success("Auction and related data added to the database successfully.");
+      navigate("/admin");
     }
   };
 

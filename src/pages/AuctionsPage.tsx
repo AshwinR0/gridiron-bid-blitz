@@ -34,12 +34,12 @@ const AuctionsPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <div className="flex flex-col items-center justify-center p-2 bg-muted rounded">
                   <Users className="mb-1 h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{auction.teams.length}</span>
+                  <span className="text-sm font-medium">{auction.teams?.length}</span>
                   <span className="text-xs text-muted-foreground">Teams</span>
                 </div>
                 <div className="flex flex-col items-center justify-center p-2 bg-muted rounded">
                   <Users className="mb-1 h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{auction.players.length}</span>
+                  <span className="text-sm font-medium">{auction.players?.length}</span>
                   <span className="text-xs text-muted-foreground">Players</span>
                 </div>
               </div>
@@ -53,7 +53,7 @@ const AuctionsPage: React.FC = () => {
                   <span className="font-medium">
                     {(() => {
                       const soldPlayerIds = new Set(auction.soldPlayerIds || []);
-                      return auction.players.filter(p => soldPlayerIds.has(p.id)).length;
+                      return auction.players?.filter(p => soldPlayerIds.has(p.id))?.length;
                     })()} players
                   </span>
                 </div>
@@ -71,7 +71,7 @@ const AuctionsPage: React.FC = () => {
           </Card>
         ))}
 
-        {auctions.length === 0 && (
+        {auctions?.length === 0 && (
           <div className="md:col-span-2 lg:col-span-3 p-8 text-center border rounded-lg bg-muted">
             <h2 className="text-xl font-medium mb-2">No Auctions Available</h2>
             <p className="text-muted-foreground mb-4">There are currently no auctions to display</p>

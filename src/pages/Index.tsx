@@ -30,9 +30,9 @@ const Index = () => {
               </Button>
             </Link>
           ) : (
-            <Link to={activeAuctions.length > 0 ? `/auctions/${activeAuctions[0].id}` : "/"}>
-              <Button size="lg" className="bg-accentGold text-scoreboardBlack hover:bg-accentGold-light" disabled={activeAuctions.length === 0}>
-                <Gavel className="mr-2 h-5 w-5" /> {activeAuctions.length > 0 ? "Join Active Auction" : "No Active Auctions"}
+            <Link to={activeAuctions?.length > 0 ? `/auctions/${activeAuctions[0].id}` : "/"}>
+              <Button size="lg" className="bg-accentGold text-scoreboardBlack hover:bg-accentGold-light" disabled={activeAuctions?.length === 0}>
+                <Gavel className="mr-2 h-5 w-5" /> {activeAuctions?.length > 0 ? "Join Active Auction" : "No Active Auctions"}
               </Button>
             </Link>
           )}
@@ -60,11 +60,11 @@ const Index = () => {
         </div>
       </section>
 
-      {activeAuctions.length > 0 && (
+      {activeAuctions?.length > 0 && (
         <section className="mb-12">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-2xl font-bold">Active Auctions</h2>
-            <Link to={activeAuctions.length > 0 ? `/auctions/${activeAuctions[0].id}` : "/"}>
+            <Link to={activeAuctions?.length > 0 ? `/auctions/${activeAuctions[0].id}` : "/"}>
               <Button variant="outline" size="sm">View All</Button>
             </Link>
           </div>
@@ -74,8 +74,8 @@ const Index = () => {
                 key={auction.id}
                 id={auction.id}
                 title={auction.name}
-                teams={auction.teams.length}
-                players={auction.players.length}
+                teams={auction.teams?.length}
+                players={auction.players?.length}
                 status="active"
               />
             ))}
@@ -83,9 +83,9 @@ const Index = () => {
         </section>
       )}
 
-      {(upcomingAuctions.length > 0 || completedAuctions.length > 0) && (
+      {(upcomingAuctions?.length > 0 || completedAuctions?.length > 0) && (
         <section className="grid gap-8 md:grid-cols-2">
-          {upcomingAuctions.length > 0 && (
+          {upcomingAuctions?.length > 0 && (
             <div>
               <h2 className="mb-4 text-xl font-bold">Upcoming Auctions</h2>
               <div className="space-y-4">
@@ -94,8 +94,8 @@ const Index = () => {
                     key={auction.id}
                     id={auction.id}
                     title={auction.name}
-                    teams={auction.teams.length}
-                    players={auction.players.length}
+                    teams={auction.teams?.length}
+                    players={auction.players?.length}
                     status="upcoming"
                     compact
                   />
@@ -104,7 +104,7 @@ const Index = () => {
             </div>
           )}
 
-          {completedAuctions.length > 0 && (
+          {completedAuctions?.length > 0 && (
             <div>
               <h2 className="mb-4 text-xl font-bold">Recent Results</h2>
               <div className="space-y-4">
@@ -113,8 +113,8 @@ const Index = () => {
                     key={auction.id}
                     id={auction.id}
                     title={auction.name}
-                    teams={auction.teams.length}
-                    players={auction.players.length}
+                    teams={auction.teams?.length}
+                    players={auction.players?.length}
                     status="completed"
                     compact
                   />
@@ -125,7 +125,7 @@ const Index = () => {
         </section>
       )}
 
-      {auctions.length === 0 && (
+      {auctions?.length === 0 && (
         <div className="my-12 rounded-lg border-2 border-dashed border-muted-foreground/20 p-12 text-center">
           <Gavel className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
           <h3 className="mb-2 text-xl font-medium">No Auctions Yet</h3>

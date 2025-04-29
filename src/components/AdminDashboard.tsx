@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuction } from '@/contexts/AuctionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,11 +6,32 @@ import { ArrowLeft, CalendarClock, Clock, DollarSign, FileEdit, Gavel, LucidePlu
 import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import AuctionManager from './AuctionManager';
+import { fetchAuctions, fetchAuctionDetails } from '@/lib/api';
+import { toast } from 'sonner';
+
+interface AdminDashboardProps {
+  auctionList: { id: string; name: string; status: string; createdAt: string; teams?: { id: string; name: string }[]; players?: { id: string; name: string; price: number }[]; minPlayerPrice: number; soldPlayerIds?: string[] }[];
+}
 
 const AdminDashboard = () => {
   const { auctions, isAdmin, startAuction, completeAuction } = useAuction();
   const [selectedAuctionId, setSelectedAuctionId] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const [auctionList, setAuctionList] = useState([]);
+  
+      useEffect(() => {
+          async function loadAuctions() {
+              const { data, error } = await fetchAuctions();
+              if (error) {
+                console.error("Failed to fetch auctions:", error);
+              } else {
+                setAuctionList(data || []);
+              }
+          }
+  
+          loadAuctions();
+      }, []);
 
   if (!isAdmin) {
     return (
@@ -22,8 +43,21 @@ const AdminDashboard = () => {
     );
   }
 
-  const handleManageAuction = (auctionId: string) => {
+  const handleManageAuction = async (auctionId: string) => {
     setSelectedAuctionId(auctionId);
+
+    // Fetch auction details from Supabase
+    const { data, error } = await fetchAuctionDetails(auctionId);
+    if (error) {
+      console.error("Failed to fetch auction details:", error);
+      toast.error("Failed to fetch auction details.");
+      return;
+    }
+
+    // Pass auction data to the page for conducting the auction
+    if (data) {
+      navigate(`/auctions/${auctionId}`, { state: { auction: data } });
+    }
   };
 
   const getAuctionStatusBadge = (status: string) => {
@@ -66,7 +100,7 @@ const AdminDashboard = () => {
             </Button>
           </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {auctions.map((auction) => (
+            {auctionList.map((auction) => (
               <Card key={auction.id} className="overflow-hidden">
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
@@ -165,7 +199,7 @@ const AdminDashboard = () => {
               </Card>
             ))}
 
-            {auctions.length === 0 && (
+            {auctionList.length === 0 && (
               <div className="md:col-span-2 lg:col-span-3 p-8 text-center border rounded-lg bg-muted">
                 <Gavel className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <h2 className="text-xl font-medium mb-2">No Auctions Available</h2>

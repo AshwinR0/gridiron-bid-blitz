@@ -11,8 +11,6 @@ const NavBar = () => {
   const { pathname } = useLocation();
   const isMobile = useIsMobile(); // Use the correct hook
 
-  console.log("isMobile:", isMobile); // Debug log to verify mobile detection
-
   return (
     <div
       className={`fixed z-10 bg-[#111828] shadow-md ${isMobile ? "bottom-0 w-full h-16" : "left-0 top-0 h-full w-64"}`}

@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { Auction, AuctionContextType } from "@/types";
-import { initialAuctions } from "@/data/mockData";
 import { toast } from 'sonner';
+import { fetchAuctions } from '@/lib/api';
+import { supabase } from "@/lib/supabaseClient";
 
 const AuctionContext = createContext<AuctionContextType | undefined>(undefined);
 
@@ -14,11 +15,26 @@ export const useAuction = () => {
 };
 
 export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [auctions, setAuctions] = useState<Auction[]>(initialAuctions);
+  const [auctions, setAuctions] = useState<Auction[]>([]);
   const [currentAuction, setCurrentAuction] = useState<Auction | null>(null);
   const [isAdmin, setIsAdmin] = useState(true); // Default to admin for demo purposes
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  useEffect(() => {
+    async function loadAuctions() {
+      console.log("useEffect triggered: Fetching auctions...");
+      const { data, error } = await fetchAuctions();
+      if (error) {
+        console.error('Failed to fetch auctions:', error);
+      } else {
+        setAuctions(data || []);
+      }
+    }
+
+    loadAuctions();
+  }, []);
+
+  console.log(auctions)
   const createAuction = (auctionData: Omit<Auction, 'id' | 'createdAt' | 'history' | 'status'>) => {
     // Reset validation error at the start
     setValidationError(null);
@@ -110,7 +126,7 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     // Check if all teams have valid budgets
-    const teamsWithInvalidBudgets = auctionData.teams.filter(team =>
+    const teamsWithInvalidBudgets = auctionData.ams.filter(team =>
       team.budget < auctionData.minPlayerPrice * team.minPlayers
     );
 
@@ -158,7 +174,7 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return true;
   };
 
-  const startAuction = (auctionId: string) => {
+  const startAuction = async (auctionId: string) => {
     setAuctions(prevAuctions =>
       prevAuctions.map(auction =>
         auction.id === auctionId
@@ -183,6 +199,18 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
           unsoldPlayerIds: []
         };
       });
+    }
+
+    // Update the auction status in the database
+    const { error } = await supabase
+      .from("auctions")
+      .update({ status: "active", started_at: new Date().toISOString() })
+      .eq("id", auctionId);
+
+    if (error) {
+      console.error("Failed to update auction status in the database:", error);
+      toast.error("Failed to update auction status in the database.");
+      return;
     }
 
     toast.success("Auction Started", {
@@ -258,9 +286,27 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const setCurrentAuctionById = (auctionId: string) => {
-    const auction = auctions.find(a => a.id === auctionId) || null;
-    setCurrentAuction(auction);
+  const setCurrentAuctionById = async (auctionId: string) => {
+    const { data, error } = await supabase
+      .from("auctions")
+      .select(`
+          id,
+          name,
+          status,
+          created_at,
+          min_player_price,
+          teams:teams!fk_teams_auction(id, name, budget, min_players, max_bid_amount)
+        `)
+      .eq("id", auctionId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching auction:", error);
+      toast.error("Error fetching auction.");
+      return;
+    }
+
+    setCurrentAuction(data);
   };
 
   const placeBid = (teamId: string, amount: number) => {

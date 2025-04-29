@@ -65,7 +65,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
 
   // Add this helper function at the top of the component
   const getIncrementAmount = (currentAmount: number) => {
-    if (!auction.bidIncrementRules || auction.bidIncrementRules.length === 0) {
+    if (!auction.bidIncrementRules || auction.bidIncrementRules?.length === 0) {
       return 1; // Default increment
     }
 
@@ -80,7 +80,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
 
   // Calculate maximum bid amount for each team
   const calculateMaxBid = (team: Team) => {
-    const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
+    const playersNeeded = Math.max(0, team.minPlayers - team.players?.length);
     if (playersNeeded <= 1) {
       return team.remainingBudget;
     }
@@ -101,7 +101,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
     let incrementAmount = 1; // Default increment
     const currentBidAmount = currentAuction.currentBid?.amount || currentAuction.minPlayerPrice;
 
-    if (currentAuction.bidIncrementRules && currentAuction.bidIncrementRules.length > 0) {
+    if (currentAuction.bidIncrementRules && currentAuction.bidIncrementRules?.length > 0) {
       for (const rule of currentAuction.bidIncrementRules) {
         if (currentBidAmount >= rule.minAmount && currentBidAmount <= rule.maxAmount) {
           incrementAmount = rule.increment;
@@ -132,7 +132,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
       if (soldPlayer && soldToTeam) {
         // Remove from unsold list if the player was previously unsold
         if (unsoldPlayerIds.has(soldPlayer.id)) {
-          auction.unsoldPlayerIds = auction.unsoldPlayerIds.filter(id => id !== soldPlayer.id);
+          auction.unsoldPlayerIds = auction.unsoldPlayerIds?.filter(id => id !== soldPlayer.id);
         }
 
         setSoldModalData({
@@ -192,24 +192,24 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
   const unsoldPlayerIds = new Set(auction.unsoldPlayerIds || []);
 
   // Get remaining players (not sold yet, not currently selected, and not marked as unsold)
-  const remainingPlayers = auction.players.filter(
+  const remainingPlayers = auction.players?.filter(
     p => !soldPlayerIds.has(p.id) &&
       p.id !== selectedPlayerForBidding &&
       !unsoldPlayerIds.has(p.id)
   );
 
   // Get all sold players
-  const soldPlayers = auction.players.filter(
+  const soldPlayers = auction.players?.filter(
     p => soldPlayerIds.has(p.id)
   );
 
   // Get all unsold players
-  const unsoldPlayers = auction.players.filter(
+  const unsoldPlayers = auction.players?.filter(
     p => unsoldPlayerIds.has(p.id)
   );
 
   // Group players by position
-  const playersByPosition = auction.players.reduce((acc, player) => {
+  const playersByPosition = auction.players?.reduce((acc, player) => {
     const position = player.position;
     if (!acc[position]) {
       acc[position] = [];
@@ -221,16 +221,16 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
   // Filter players based on search query and position filter
   const filterPlayers = (players: Player[]) => {
     if (!players) return [];
-    return players.filter(player => {
-      const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return players?.filter(player => {
+      const matchesSearch = player.name?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesPosition = positionFilter === null || player.position === positionFilter;
       return matchesSearch && matchesPosition;
     });
   };
 
   // Check if all players are sold
-  const allPlayersSold = auction.players.every(player =>
-    auction.soldPlayerIds.includes(player.id)
+  const allPlayersSold = auction.players?.every(player =>
+    auction.soldPlayerIds?.includes(player.id)
   );
 
   const handleCompleteAuction = () => {
@@ -289,9 +289,9 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {auction.teams.map(team => {
+              {auction.teams?.map(team => {
                 // Get players allocated to this team
-                const teamPlayers = team.players.map(p => {
+                const teamPlayers = team.players?.map(p => {
                   const player = auction.players.find(player => player.id === p.playerId);
                   return {
                     ...player,
@@ -308,7 +308,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                       <h3 className="font-bold">{team.name}</h3>
                       <div className="text-sm">
                         <span className="font-medium">Budget:</span> {team.remainingBudget}/{team.budget}
-                        <span className="ml-2 font-medium">Players:</span> {teamPlayers.length}/{team.minPlayers}
+                        <span className="ml-2 font-medium">Players:</span> {teamPlayers?.length}/{team.minPlayers}
                         <span className="ml-2 font-medium">Max Bid:</span> {maxBid}
                       </div>
                     </div>
@@ -322,19 +322,19 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {teamPlayers.length > 0 ? (
-                          teamPlayers.map(player => (
+                        {teamPlayers?.length > 0 ? (
+                          teamPlayers?.map(player => (
                             <TableRow key={player.id}>
                               <TableCell className="font-medium">{player.name}</TableCell>
                               <TableCell>{player.position}</TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
-                                  {player.stats && Object.entries(player.stats).map(([key, value]) => (
+                                  {player.stats && Object.entries(player.stats)?.map(([key, value]) => (
                                     <span key={key} className="text-xs">
                                       {key}: {String(value)}
                                     </span>
                                   )).slice(0, 2)}
-                                  {player.stats && Object.keys(player.stats).length > 2 &&
+                                  {player.stats && Object.keys(player.stats)?.length > 2 &&
                                     <span className="text-xs text-muted-foreground">...</span>}
                                 </div>
                               </TableCell>
@@ -399,7 +399,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                             <h3 className="font-bold text-lg">{currentPlayer.name}</h3>
                             <p className="text-muted-foreground">{currentPlayer.position}</p>
                             <div className="flex flex-wrap gap-2 mt-2">
-                              {currentPlayer.stats && Object.entries(currentPlayer.stats).map(([key, value]) => (
+                              {currentPlayer.stats && Object.entries(currentPlayer.stats)?.map(([key, value]) => (
                                 <span key={key} className="px-2 py-1 bg-background border rounded text-xs">
                                   {key}: {String(value)}
                                 </span>
@@ -458,7 +458,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                           <p className="text-sm font-medium mb-2">Place Bid For Team:</p>
                           <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                              {teams.map(team => {
+                              {teams?.map(team => {
                                 // Calculate max bid for this team
                                 const maxBid = calculateMaxBid(team);
                                 const currentBidAmount = auction.currentBid?.amount || 0;
@@ -470,7 +470,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                                 // Check if team can bid
                                 const canBid = maxBid >= nextBidAmount &&
                                   team.id !== auction.currentBid?.teamId &&
-                                  team.players.length < team.minPlayers;
+                                  team.players?.length < team.minPlayers;
                                 const isCurrentBidder = auction.currentBid?.teamId === team.id;
 
                                 return (
@@ -508,7 +508,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                                       >
                                         {isCurrentBidder ? 'Current Highest' : 'Place Bid'}
                                       </Button>
-                                      {team.players.length >= team.minPlayers && (
+                                      {team.players?.length >= team.minPlayers && (
                                         <p className="text-xs text-red-500 text-center mt-1">
                                           Max players reached
                                         </p>
@@ -543,13 +543,13 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                           Selected: {selectedPlayerForBidding ? '1' : '0'}
                         </Badge>
                         <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                          Sold: {soldPlayers.length}
+                          Sold: {soldPlayers?.length}
                         </Badge>
                         <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
-                          Unsold: {unsoldPlayers.length}
+                          Unsold: {unsoldPlayers?.length}
                         </Badge>
                         <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-                          Remaining: {remainingPlayers.length}
+                          Remaining: {remainingPlayers?.length}
                         </Badge>
                       </div>
 
@@ -578,9 +578,9 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                       </div>
 
                       <div className="max-h-[400px] overflow-y-auto border rounded-md">
-                        {Object.entries(playersByPosition).map(([position, players]) => {
+                        {Object.entries(playersByPosition)?.map(([position, players]) => {
                           // Filter players by position and get available ones
-                          const availablePlayers = filterPlayers((players as Player[]).filter(
+                          const availablePlayers = filterPlayers((players as Player[])?.filter(
                             p => auction.status === 'completed'
                               ? true  // Show all players when auction is completed
                               : !soldPlayerIds.has(p.id) &&
@@ -589,11 +589,11 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                                 unsoldPlayerIds.has(p.id))
                           ));
 
-                          if (availablePlayers.length === 0) return null;
+                          if (availablePlayers?.length === 0) return null;
 
                           return (
                             <div key={position} className="border-b last:border-b-0">
-                              <div className="p-2 bg-muted font-medium">{position}s ({availablePlayers.length})</div>
+                              <div className="p-2 bg-muted font-medium">{position}s ({availablePlayers?.length})</div>
                               <Table>
                                 <TableHeader>
                                   <TableRow>
@@ -606,7 +606,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {availablePlayers.map(player => {
+                                  {availablePlayers?.map(player => {
                                     // Determine player status
                                     let status = "Available";
                                     let statusClass = "text-blue-600";
@@ -646,7 +646,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                                         </TableCell>
                                         <TableCell>
                                           <div className="grid grid-cols-3 gap-1">
-                                            {player.stats && Object.entries(player.stats).map(([key, value]) => (
+                                            {player.stats && Object.entries(player.stats)?.map(([key, value]) => (
                                               <div key={key} className="rounded bg-muted p-1 text-center">
                                                 <p className="text-xs capitalize">{key}</p>
                                                 <p className="font-medium">{String(value)}</p>
@@ -698,9 +698,9 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
-                    {auction.teams.map(team => {
+                    {auction.teams?.map(team => {
                       // Get players allocated to this team
-                      const teamPlayers = team.players.map(p => {
+                      const teamPlayers = team.players?.map(p => {
                         const player = auction.players.find(player => player.id === p.playerId);
                         return {
                           ...player,
@@ -717,7 +717,7 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                             <h3 className="font-bold">{team.name}</h3>
                             <div className="text-sm">
                               <span className="font-medium">Budget:</span> {team.remainingBudget}/{team.budget}
-                              <span className="ml-2 font-medium">Players:</span> {teamPlayers.length}/{team.minPlayers}
+                              <span className="ml-2 font-medium">Players:</span> {teamPlayers?.length}/{team.minPlayers}
                               <span className="ml-2 font-medium">Max Bid:</span> {maxBid}
                             </div>
                           </div>
@@ -731,19 +731,19 @@ const AuctionManager = ({ auctionId }: AuctionManagerProps) => {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {teamPlayers.length > 0 ? (
-                                teamPlayers.map(player => (
+                              {teamPlayers?.length > 0 ? (
+                                teamPlayers?.map(player => (
                                   <TableRow key={player.id}>
                                     <TableCell className="font-medium">{player.name}</TableCell>
                                     <TableCell>{player.position}</TableCell>
                                     <TableCell>
                                       <div className="flex flex-wrap gap-1">
-                                        {player.stats && Object.entries(player.stats).map(([key, value]) => (
+                                        {player.stats && Object.entries(player.stats)?.map(([key, value]) => (
                                           <span key={key} className="text-xs">
                                             {key}: {String(value)}
                                           </span>
                                         )).slice(0, 2)}
-                                        {player.stats && Object.keys(player.stats).length > 2 &&
+                                        {player.stats && Object.keys(player.stats)?.length > 2 &&
                                           <span className="text-xs text-muted-foreground">...</span>}
                                       </div>
                                     </TableCell>

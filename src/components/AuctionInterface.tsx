@@ -29,10 +29,10 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
 
   // Set current auction when component mounts or auctionId changes
   useEffect(() => {
-    if (auctionId && (!currentAuction || currentAuction.id !== auctionId)) {
+    if (auctionId) {
       setCurrentAuctionById(auctionId);
     }
-  }, [auctionId, currentAuction, setCurrentAuctionById]);
+  }, [auctionId, setCurrentAuctionById]);
 
   if (!currentAuction) {
     return <div className="p-8 text-center">Auction not found</div>;
@@ -69,10 +69,9 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
     ? currentAuction.players.find(p => p.id === currentAuction.currentPlayerId)
     : null;
 
-  console.log(currentAuction)
   // Calculate maximum bid amount for each team
   const calculateMaxBid = (team: Team) => {
-    const playersNeeded = Math.max(0, team.minPlayers - team.players.length);
+    const playersNeeded = Math.max(0, team.minPlayers - team.players?.length);
     if (playersNeeded <= 1) {
       return team.remainingBudget;
     }
@@ -95,7 +94,7 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
     let incrementAmount = 1; // Default increment
     const currentBidAmount = currentAuction.currentBid?.amount || currentAuction.minPlayerPrice;
 
-    if (currentAuction.bidIncrementRules && currentAuction.bidIncrementRules.length > 0) {
+    if (currentAuction.bidIncrementRules && currentAuction.bidIncrementRules?.length > 0) {
       for (const rule of currentAuction.bidIncrementRules) {
         if (currentBidAmount >= rule.minAmount && currentBidAmount <= rule.maxAmount) {
           incrementAmount = rule.increment;
@@ -113,9 +112,9 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
   };
 
   // Get sold players
-  const soldPlayers = currentAuction.history.filter(h => h.type === 'next_player').map(h => {
-    const player = currentAuction.players.find(p => p.id === h.playerId);
-    const team = currentAuction.teams.find(t => t.id === h.teamId);
+  const soldPlayers = currentAuction.history?.filter(h => h.type === 'next_player')?.map(h => {
+    const player = currentAuction.players?.find(p => p.id === h.playerId);
+    const team = currentAuction.teams?.find(t => t.id === h.teamId);
     if (!player || !team) return null;
     return {
       playerId: h.playerId,
@@ -127,16 +126,16 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
   }).filter(Boolean);
 
   // Create a set of sold player IDs for quick lookup
-  const soldPlayerIds = new Set(soldPlayers.map(p => p.playerId));
+  const soldPlayerIds = new Set(soldPlayers?.map(p => p.playerId));
 
   // Get remaining players (not sold yet)
-  const remainingPlayers = currentAuction.players.filter(
+  const remainingPlayers = currentAuction.players?.filter(
     p => !soldPlayerIds.has(p.id) && p.id !== currentAuction.currentPlayerId
   );
 
   // Add this helper function
   const getIncrementAmount = (currentAmount: number) => {
-    if (!currentAuction.bidIncrementRules || currentAuction.bidIncrementRules.length === 0) {
+    if (!currentAuction.bidIncrementRules || currentAuction.bidIncrementRules?.length === 0) {
       return 1; // Default increment
     }
 
@@ -151,7 +150,7 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
 
   // Filter players based on search and filters
   const filterPlayers = (players: Player[]) => {
-    return players.filter(player => {
+    return players?.filter(player => {
       const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesPosition = positionFilter === "all" || player.position === positionFilter;
       const matchesTeam = teamFilter === "all" || (
@@ -163,13 +162,24 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
 
   // Apply filters to remaining players
   const filteredRemainingPlayers = filterPlayers(remainingPlayers);
-  const filteredSoldPlayers = soldPlayers.filter(sold => {
-    const player = currentAuction.players.find(p => p.id === sold.playerId);
+  const filteredSoldPlayers = soldPlayers?.filter(sold => {
+    const player = currentAuction.players?.find(p => p.id === sold.playerId);
     if (!player) return false;
-    return filterPlayers([player]).length > 0;
+    return filterPlayers([player])?.length > 0;
   });
 
-  { console.log('first') }
+  const calculateTeamStats = (team: Team) => {
+    const playersAcquired = team.players?.length;
+    const playersNeeded = Math.max(0, team.minPlayers - playersAcquired);
+    const maxBid = team.max_bid_amount;
+
+    return { playersAcquired, playersNeeded, maxBid };
+  };
+
+  const teamStats = currentAuction.teams?.map(team => ({
+    ...team,
+    ...calculateTeamStats(team)
+  }));
 
   return (
     <div className="container mx-auto p-4">
@@ -253,7 +263,7 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
                     <p className="mb-2 text-muted-foreground">{currentPlayer.position}</p>
 
                     <div className="flex flex-wrap gap-3">
-                      {currentPlayer.stats && Object.entries(currentPlayer.stats).map(([key, value]) => (
+                      {currentPlayer.stats && Object.entries(currentPlayer.stats)?.map(([key, value]) => (
                         <div key={key} className="stat-box min-w-20">
                           <div className="text-xs uppercase">{key}</div>
                           <div className="text-lg font-semibold">{value}</div>
@@ -328,9 +338,9 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {currentAuction.history.length > 0 ? (
+              {currentAuction.history?.length > 0 ? (
                 <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
-                  {[...currentAuction.history].reverse().map((bid, i) => {
+                  {[...currentAuction.history].reverse()?.map((bid, i) => {
                     const player = currentAuction.players.find(p => p.id === bid.playerId);
                     const team = currentAuction.teams.find(t => t.id === bid.teamId);
                     if (!player || !team) return null;
@@ -391,7 +401,7 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
           </TabsList>
           <TabsContent value="teams" className="mt-6">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {currentAuction.teams.map(team => (
+              {currentAuction.teams?.map(team => (
                 <TeamCard
                   key={team.id}
                   team={team}
@@ -406,21 +416,21 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center p-6 text-center">
                   <h3 className="mb-1 text-lg font-medium">Total</h3>
-                  <p className="text-3xl font-bold">{currentAuction.players.length}</p>
+                  <p className="text-3xl font-bold">{currentAuction.players?.length}</p>
                   <p className="text-sm text-muted-foreground">Players</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="flex flex-col items-center justify-center p-6 text-center">
                   <h3 className="mb-1 text-lg font-medium">Sold</h3>
-                  <p className="text-3xl font-bold">{currentAuction.soldPlayerIds.length}</p>
+                  <p className="text-3xl font-bold">{currentAuction.soldPlayerIds?.length}</p>
                   <p className="text-sm text-muted-foreground">Players</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="flex flex-col items-center justify-center p-6 text-center">
                   <h3 className="mb-1 text-lg font-medium">Remaining</h3>
-                  <p className="text-3xl font-bold">{remainingPlayers.length + (currentPlayer ? 1 : 0)}</p>
+                  <p className="text-3xl font-bold">{remainingPlayers?.length + (currentPlayer ? 1 : 0)}</p>
                   <p className="text-sm text-muted-foreground">Players</p>
                 </CardContent>
               </Card>
@@ -443,7 +453,7 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Positions</SelectItem>
-                  {Array.from(new Set(currentAuction.players.map(p => p.position))).map(position => (
+                  {Array.from(new Set(currentAuction.players?.map(p => p.position)))?.map(position => (
                     <SelectItem key={position} value={position}>{position}</SelectItem>
                   ))}
                 </SelectContent>
@@ -454,7 +464,7 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Teams</SelectItem>
-                  {currentAuction.teams.map(team => (
+                  {currentAuction.teams?.map(team => (
                     <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -462,7 +472,7 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {/* Current player (if any) */}
-              {currentPlayer && filterPlayers([currentPlayer]).length > 0 && (
+              {currentPlayer && filterPlayers([currentPlayer])?.length > 0 && (
                 <PlayerCard
                   player={currentPlayer}
                   status="current"
@@ -474,7 +484,7 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
               )}
 
               {/* Sold players */}
-              {filteredSoldPlayers.map(sold => {
+              {filteredSoldPlayers?.map(sold => {
                 const player = currentAuction.players.find(p => p.id === sold.playerId);
                 const team = currentAuction.teams.find(t => t.id === sold.teamId);
                 if (!player || !team) return null;
@@ -491,7 +501,7 @@ const AuctionInterface = ({ auctionId }: AuctionInterfaceProps) => {
               })}
 
               {/* Remaining players */}
-              {filteredRemainingPlayers.map(player => (
+              {filteredRemainingPlayers?.map(player => (
                 <PlayerCard
                   key={player.id}
                   player={player}
@@ -520,10 +530,10 @@ interface TeamCardProps {
 
 const TeamCard = ({ team, auction, soldPlayers }: TeamCardProps) => {
   // Get players purchased by this team
-  const teamPurchases = soldPlayers.filter(sold => sold.teamId === team.id);
+  const teamPurchases = soldPlayers?.filter(sold => sold.teamId === team.id);
 
   // Calculate needed players
-  const neededPlayers = Math.max(0, team.minPlayers - teamPurchases.length);
+  const neededPlayers = Math.max(0, team.minPlayers - teamPurchases?.length);
 
   // Calculate budget usage
   const spentBudget = team.budget - team.remainingBudget;
@@ -531,7 +541,7 @@ const TeamCard = ({ team, auction, soldPlayers }: TeamCardProps) => {
 
   // Calculate max bid
   const maxBid = (() => {
-    const playersNeeded = Math.max(0, team.minPlayers - teamPurchases.length);
+    const playersNeeded = Math.max(0, team.minPlayers - teamPurchases?.length);
     if (playersNeeded <= 1) {
       return team.remainingBudget;
     }
@@ -562,7 +572,7 @@ const TeamCard = ({ team, auction, soldPlayers }: TeamCardProps) => {
         <div className="mb-4 grid grid-cols-3 gap-2">
           <div className="rounded-md bg-theme-dark/50 backdrop-blur-sm p-3 text-center ring-1 ring-border/10">
             <p className="text-xs text-muted-foreground/80">Players</p>
-            <p className="text-lg font-medium text-foreground/90">{teamPurchases.length}</p>
+            <p className="text-lg font-medium text-foreground/90">{teamPurchases?.length}</p>
           </div>
           <div className="rounded-md bg-theme-dark/50 backdrop-blur-sm p-3 text-center ring-1 ring-border/10">
             <p className="text-xs text-muted-foreground/80">Needed</p>
@@ -575,7 +585,7 @@ const TeamCard = ({ team, auction, soldPlayers }: TeamCardProps) => {
         </div>
 
         <h4 className="mb-2 font-medium text-foreground/90">Acquired Players</h4>
-        {team?.players.length > 0 ? (
+        {team?.players?.length > 0 ? (
           <div className="max-h-40 space-y-2 overflow-y-auto pr-1">
             {team?.players?.map(purchase => {
               const player = auction.players.find(p => p.id === purchase.playerId);
